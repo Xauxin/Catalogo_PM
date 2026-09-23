@@ -1,0 +1,29 @@
+[[pages]]
+path = "./pages/home.py"
+name = "Home"
+icon = "🏠"
+
+[[pages]]
+path = "./pages/visualizar_lotes.py"
+name = "Visualizar Lotes"
+icon = "📑"
+
+[[pages]]
+path = "./pages/gerar_bordado_em_lote.py"
+name = "Gerar Lotes de Bordado"
+icon = "📋"
+
+[[pages]]
+path = "./pages/gerar_bordado.py"
+name = "Gerar Bordado"
+icon = "🖊"
+
+[[pages]]
+path = "./pages/gerar_lote.py"
+name = "Gerar Lote"
+icon = "📦"
+
+[[pages]]
+path = "./pages/pecas.py"
+name = "Catálogo"
+icon = "🏷️"

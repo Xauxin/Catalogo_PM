@@ -1,0 +1,24 @@
+{
+    "font_name": "Monotype_Corsiva",
+    "tamanhos_disponiveis": {
+        "1-90mm":{
+            "nome_formatado": "9mm",
+            "tamanho_espaco": 55
+
+        },
+        "2-80mm":{
+            "nome_formtado": "8mm",
+            "tamanho_espaco": 48
+        },
+        "3-70mm":{
+            "nome_formatado": "7mm",
+            "tamanho_espaco": 42
+        },
+        "4-60mm":{
+            "nome_formatado": "6mm",
+            "tamanho_espaco": 36
+        }
+
+    },
+    "fonte_da_especialidade": "ARIAL"
+}

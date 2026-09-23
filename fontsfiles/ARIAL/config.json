@@ -1,0 +1,11 @@
+{
+    "font_name": "ARIAL",
+    "tamanhos_disponiveis": {
+        "1-58mm":{
+            "nome_formatado": "5.8mm",
+            "tamanho_espaco": 34
+        }
+    },
+    "fonte_da_especialidade": "ARIAL"
+    
+}

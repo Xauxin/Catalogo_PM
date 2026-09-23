@@ -1,0 +1,9 @@
+{
+    "font_name": "Montserrat",
+    "tamanhos_disponiveis": {
+        "1-60mm":{
+            "nome_formatado": "6mm",
+            "tamanho_espaco": 35.7
+        }
+    } 
+}

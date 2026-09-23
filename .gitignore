@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Streamlit Secrets (NUNCA envie senhas para o GitHub!)
+.streamlit/secrets.toml
+
+# Banco de dados SQLite local
+banco.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Arquivos temporários e uploads locais
+uploads/
+lote/
+
+# Editores e ferramentas de IA
+.vscode/
+.idea/
+.continue/
+.gemini/
+*.log
+
+# Sistema Operacional
+.DS_Store
+Thumbs.db
+desktop.ini
