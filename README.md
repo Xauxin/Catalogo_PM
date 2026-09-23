@@ -77,45 +77,6 @@ Acesse no seu navegador: `http://localhost:8501` ou `http://localhost:8502`.
 
 ---
 
-## ☁️ Guia de Deploy em Produção (Streamlit Cloud + Supabase)
-
-O projeto está pré-configurado com **arquitetura híbrida**: se nenhuma variável de banco for informada, ele utiliza o SQLite local; se a `DATABASE_URL` for configurada, ele conecta automaticamente ao PostgreSQL remoto.
-
-### Passo 1: Criar o Banco Gratuito no Supabase
-1. Acesse [supabase.com](https://supabase.com) e crie um novo projeto (sugestão de região: `São Paulo (sa-east-1)`).
-2. Vá nas configurações do projeto: **Project Settings (ícone de engrenagem) ➔ Database**.
-3. Na seção **Connection string**, selecione a aba **URI** e copie a URL de conexão:
-   ```text
-   postgresql://postgres.[PROJECT-REF]:[SUA-SENHA]@aws-0-sa-east-1.pooler.supabase.com:6543/postgres
-   ```
-   > ⚠️ **Atenção:** Certifique-se de copiar a **URI de conexão do banco de dados** (que começa com `postgresql://`) e **não** a URL da API REST (que começa com `https://`). Substitua `[SUA-SENHA]` pela senha definida na criação do projeto.
-
-### Passo 2: Subir o Código no GitHub
-1. Inicialize o repositório Git e faça o push (o `.gitignore` já está configurado para não subir caches, banco local e senhas):
-   ```bash
-   git init
-   git add .
-   git commit -m "Deploy inicial SVVDST"
-   git branch -M main
-   git remote add origin https://github.com/seu-usuario/svvdst.git
-   git push -u origin main
-   ```
-
-### Passo 3: Publicar no Streamlit Community Cloud
-1. Acesse [share.streamlit.io](https://share.streamlit.io) e conecte com seu GitHub.
-2. Clique em **New app**, selecione o repositório, branch `main` e arquivo `app.py`.
-3. Abra **Advanced settings ➔ Secrets** e configure suas variáveis:
-   ```toml
-   # Conexão com o PostgreSQL do Supabase
-   DATABASE_URL = "postgresql://postgres.seu_projeto:sua_senha@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
-
-   # (Opcional) Senha para restringir o acesso ao sistema da sua confecção
-   APP_PASSWORD = "sua_senha_secreta_aqui"
-   ```
-4. Clique em **Deploy**! Em instantes a aplicação estará no ar e criará as tabelas do banco automaticamente.
-
----
-
 ## 📁 Estrutura de Diretórios
 
 ```text

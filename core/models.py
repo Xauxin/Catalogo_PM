@@ -46,12 +46,19 @@ class TemplateBordado(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
-    tipo: str
+    tipo: str = Field(default="Logo/Brasão")
+    categoria: Optional[str] = Field(default=None)
+    subcategoria: Optional[str] = Field(default=None)
+    arquivo_dst: Optional[str] = Field(default=None)
     pontos: int = Field(default=0)
+    largura_mm: Optional[float] = Field(default=None)
+    altura_mm: Optional[float] = Field(default=None)
+    trocas_cor: Optional[int] = Field(default=0)
+    cores_detalhes: Optional[str] = Field(default=None)
+    linhas_usadas: Optional[str] = Field(default=None)
     preco: float = Field(default=0.0)
     matriz_pronta: bool = Field(default=True)
     preco_matriz: Optional[float] = Field(default=0.0)
-    linhas_usadas: Optional[str] = Field(default=None)
     codigo_identificacao: Optional[str] = Field(default=None)
     imagem_digital: Optional[str] = Field(default=None)
     foto_bordado: Optional[str] = Field(default=None)

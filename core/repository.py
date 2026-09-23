@@ -109,6 +109,13 @@ class CatalogoRepository:
         preco_matriz: float | None = None,
         linhas_usadas: str | None = None,
         codigo_identificacao: str | None = None,
+        categoria: str | None = None,
+        subcategoria: str | None = None,
+        largura_mm: float | None = None,
+        altura_mm: float | None = None,
+        trocas_cor: int | None = None,
+        cores_detalhes: str | None = None,
+        arquivo_dst: str | None = None,
     ) -> bool:
         """Atualiza os dados cadastrais de um bordado/matriz existente."""
         with get_session() as session:
@@ -130,6 +137,20 @@ class CatalogoRepository:
                     template.linhas_usadas = linhas_usadas
                 if codigo_identificacao is not None:
                     template.codigo_identificacao = codigo_identificacao
+                if categoria is not None:
+                    template.categoria = categoria
+                if subcategoria is not None:
+                    template.subcategoria = subcategoria
+                if largura_mm is not None:
+                    template.largura_mm = largura_mm
+                if altura_mm is not None:
+                    template.altura_mm = altura_mm
+                if trocas_cor is not None:
+                    template.trocas_cor = trocas_cor
+                if cores_detalhes is not None:
+                    template.cores_detalhes = cores_detalhes
+                if arquivo_dst is not None:
+                    template.arquivo_dst = arquivo_dst
                 session.add(template)
                 session.commit()
                 return True

@@ -7,6 +7,8 @@ import streamlit as st
 
 from core.models import TemplateBordado
 from core.repository import CatalogoRepository
+from utils.embroidery_reader import extrair_dados_matriz, renderizar_chips_cores_html
+from indexar_acervo import localizar_pasta_acervo, indexar_arquivos
 
 UPLOAD_DIR = Path("uploads/bordados")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -164,69 +166,137 @@ with tab_pecas:
 # ABA 2: CATÁLOGO DE BORDADOS E MATRIZES
 # =====================================================================
 with tab_bordados:
-    with st.expander("➕ Cadastrar Novo Bordado / Matriz no Catálogo", expanded=False):
+    # ---------------------------------------------------------------------
+    # 1. FERRAMENTA DE SINCRONIZAÇÃO EM MASSA DE PASTAS
+    # ---------------------------------------------------------------------
+    with st.expander("📁 Sincronizar Pasta do Acervo (Logos, Brasões e Matrizes)", expanded=False):
+        st.markdown(
+            "Esta ferramenta analisa sua pasta local de matrizes organizada por assuntos/instituições "
+            "(ex: `matrizes/logos_e_brasoes/Faculdades/Unicesumar/Medicina.dst`), lê os arquivos com o **pyembroidery**, "
+            "extrai **pontos, dimensões (mm), trocas de cor e códigos de linha** e sincroniza direto com o banco de dados!"
+        )
+        c_sync1, c_sync2 = st.columns([3, 1])
+        with c_sync1:
+            pasta_sugestao = str(localizar_pasta_acervo())
+            caminho_dir = st.text_input(
+                "Caminho da Pasta do Acervo",
+                value=pasta_sugestao,
+                help="Pasta onde você organizou os arquivos .dst / .pes por pastas de cursos, faculdades ou empresas",
+                key="input_pasta_acervo",
+            )
+        with c_sync2:
+            st.markdown("<div style='height: 28px'></div>", unsafe_allow_html=True)
+            btn_sync_pasta = st.button("🔄 Sincronizar Agora", type="primary", use_container_width=True, key="btn_sync_acervo")
+
+        if btn_sync_pasta:
+            with st.spinner("Processando arquivos de bordado e extraindo dados com pyembroidery..."):
+                try:
+                    p_obj = Path(caminho_dir)
+                    if not p_obj.exists():
+                        st.error(f"A pasta informada '{caminho_dir}' não existe.")
+                    else:
+                        indexar_arquivos(p_obj)
+                        st.success("✅ Acervo sincronizado com sucesso!")
+                        st.rerun()
+                except Exception as err:
+                    st.error(f"Erro na sincronização: {err}")
+
+    # ---------------------------------------------------------------------
+    # 2. FORMULÁRIO DE CADASTRO MANUAL / UPLOAD DE MATRIZ
+    # ---------------------------------------------------------------------
+    with st.expander("➕ Cadastrar Novo Bordado / Matriz Manualmente", expanded=False):
+        st.caption("Você pode subir um arquivo de bordado (.dst, .pes, etc.) para extrair pontos, dimensões e cores automaticamente:")
+        
+        up_matriz_auto = st.file_uploader(
+            "🧵 Arquivo da Matriz (.dst, .pes, .exp, .jef) [Opcional para Auto-preenchimento]",
+            type=["dst", "pes", "exp", "jef", "vp3"],
+            key="up_matriz_auto",
+            help="Ao selecionar o arquivo, os pontos, dimensões e paradas de agulha são lidos na hora pelo pyembroidery"
+        )
+
+        dados_auto = {}
+        if up_matriz_auto:
+            try:
+                dados_auto = extrair_dados_matriz(up_matriz_auto, up_matriz_auto.name) or {}
+                if dados_auto:
+                    st.info(
+                        f"📊 **Dados extraídos do arquivo:** `{dados_auto.get('pontos', 0):,}` pontos | "
+                        f"Dimensões: `{dados_auto.get('largura_mm', 0)} x {dados_auto.get('altura_mm', 0)} mm` | "
+                        f"Trocas de Cor: `{dados_auto.get('trocas_cor', 0)}` | Linhas: `{dados_auto.get('linhas_usadas')}`"
+                    )
+            except Exception as e:
+                st.warning(f"Não foi possível ler os detalhes técnicos do arquivo: {e}")
+
         with st.form("form_novo_bordado", clear_on_submit=True):
-            col_b1, col_b2, col_b3 = st.columns([2.5, 1.5, 1.5])
+            col_b1, col_b2, col_b3 = st.columns([2.2, 1.4, 1.4])
             with col_b1:
+                nome_sug = Path(up_matriz_auto.name).stem.replace("_", " ").strip() if up_matriz_auto else ""
                 nome_bordado = st.text_input(
                     "Nome do Bordado / Matriz *",
-                    placeholder="Ex: Brasão Colégio Santo Anjo",
+                    value=nome_sug,
+                    placeholder="Ex: Brasão Medicina Unicesumar",
                     help="Nome de identificação do bordado",
                 )
             with col_b2:
+                categoria_sug = st.selectbox(
+                    "Categoria *",
+                    options=["Faculdades", "Cursos", "Empresas", "Hospitais & Clínicas", "Brasões", "Geral", "Outro"],
+                    accept_new_options=True,
+                    help="Assunto principal ou grupo",
+                )
+            with col_b3:
+                subcategoria_sug = st.text_input(
+                    "Subcategoria / Instituição",
+                    placeholder="Ex: Unicesumar, Uningá, Integrado...",
+                    help="Instituição, faculdade, especialidade ou cliente específico",
+                )
+
+            col_t1, col_t2, col_t3 = st.columns([1.5, 1.5, 1.5])
+            with col_t1:
                 tipo_bordado = st.selectbox(
                     "Tipo *",
                     options=["Logo Fixo", "Brasão", "Desenho", "Texto", "Aplique", "Escudo", "Outro"],
                     accept_new_options=True,
-                    help="Tipo ou categoria do bordado (permite digitar novos tipos)",
+                    help="Tipo ou categoria do bordado",
                 )
-            with col_b3:
+            with col_t2:
                 codigo_identificacao = st.text_input(
                     "Código de Identificação",
                     placeholder="Ex: BRAS-01 / MAT-2024",
                     help="Código interno ou referência de arquivo",
                 )
-
-            col_b4, col_b5, col_b6, col_b7 = st.columns([1.5, 1.5, 1.2, 1.5])
-            with col_b4:
+            with col_t3:
+                pontos_val = dados_auto.get("pontos", 5000)
                 pontos = st.number_input(
                     "Contagem de Pontos *",
                     min_value=0,
-                    value=5000,
+                    value=int(pontos_val),
                     step=500,
                     help="Quantidade de pontos estimada ou exata da matriz",
                 )
-            with col_b5:
-                preco_bordado = st.number_input(
-                    "Preço do Bordado (R$) *",
-                    min_value=0.0,
-                    value=15.00,
-                    step=0.50,
-                    format="%.2f",
-                    help="Preço cobrado pela aplicação deste bordado",
-                )
-            with col_b6:
+
+            col_dim1, col_dim2, col_dim3 = st.columns([1.5, 1.5, 1.5])
+            with col_dim1:
+                larg_val = float(dados_auto.get("largura_mm", 0.0))
+                largura_input = st.number_input("Largura (mm)", min_value=0.0, value=larg_val, step=1.0, format="%.1f")
+            with col_dim2:
+                alt_val = float(dados_auto.get("altura_mm", 0.0))
+                altura_input = st.number_input("Altura (mm)", min_value=0.0, value=alt_val, step=1.0, format="%.1f")
+            with col_dim3:
                 matriz_pronta_opt = st.selectbox(
                     "Matriz Pronta?",
                     options=["Sim", "Não"],
                     index=0,
                     help="Indica se a matriz computadorizada já está digitalizada e pronta",
                 )
-            with col_b7:
-                preco_matriz = st.number_input(
-                    "Preço da Matriz (R$)",
-                    min_value=0.0,
-                    value=0.00,
-                    step=5.00,
-                    format="%.2f",
-                    help="Custo da criação/digitalização da matriz, se aplicável",
-                )
 
-            linhas_selecionadas = st.multiselect(
-                "Linhas Usadas (Cores)",
-                options=CORES_PADRAO,
-                accept_new_options=True,
-                help="Selecione as cores ou digite uma nova cor/código de linha",
+            # Sugestão de cores extraídas (apenas códigos)
+            cores_auto_str = dados_auto.get("linhas_usadas", "")
+            linhas_usadas_input = st.text_input(
+                "Códigos das Cores da Linha (separados por vírgula)",
+                value=cores_auto_str,
+                placeholder="Ex: 5605, 5088, 5593, #000080",
+                help="Apenas os códigos numéricos ou hexadecimais das cores",
             )
 
             col_img_d, col_img_f = st.columns(2)
@@ -257,8 +327,6 @@ with tab_bordados:
                     st.error("⚠️ O Tipo do bordado é obrigatório.")
                 elif pontos <= 0:
                     st.error("⚠️ A contagem de pontos deve ser maior que zero.")
-                elif preco_bordado < 0:
-                    st.error("⚠️ O preço do bordado não pode ser negativo.")
                 else:
                     try:
                         caminho_digital = (
@@ -278,20 +346,20 @@ with tab_bordados:
                             else None
                         )
 
-                        str_linhas = (
-                            ", ".join([c.strip() for c in linhas_selecionadas if c.strip()])
-                            if linhas_selecionadas
-                            else None
-                        )
-
                         novo_bordado = TemplateBordado(
                             nome=nome_bordado.strip(),
+                            categoria=str(categoria_sug).strip() if categoria_sug else None,
+                            subcategoria=str(subcategoria_sug).strip() if subcategoria_sug.strip() else None,
                             tipo=str(tipo_bordado).strip(),
                             pontos=int(pontos),
-                            preco=float(preco_bordado),
+                            largura_mm=float(largura_input) if largura_input > 0 else None,
+                            altura_mm=float(altura_input) if altura_input > 0 else None,
+                            trocas_cor=int(dados_auto.get("trocas_cor", 0)),
+                            preco=0.0,
                             matriz_pronta=(matriz_pronta_opt == "Sim"),
-                            preco_matriz=float(preco_matriz),
-                            linhas_usadas=str_linhas,
+                            preco_matriz=0.0,
+                            linhas_usadas=linhas_usadas_input.strip() if linhas_usadas_input.strip() else None,
+                            cores_detalhes=dados_auto.get("cores_detalhes"),
                             codigo_identificacao=codigo_identificacao.strip() if codigo_identificacao.strip() else None,
                             imagem_digital=caminho_digital,
                             foto_bordado=caminho_foto,
@@ -303,7 +371,7 @@ with tab_bordados:
                         st.error(f"Erro ao salvar bordado no banco: {e}")
 
     # =====================================================================
-    # VISUALIZAÇÃO DO CATÁLOGO DE BORDADOS
+    # 3. VISUALIZAÇÃO DO CATÁLOGO DE BORDADOS
     # =====================================================================
     st.subheader("🗂️ Acervo de Matrizes e Bordados")
 
@@ -312,7 +380,8 @@ with tab_bordados:
 
         if not bordados:
             st.info(
-                "O catálogo de bordados ainda está vazio. Abra o formulário acima para cadastrar seu primeiro bordado ou matriz."
+                "O catálogo de bordados ainda está vazio. Você pode sincronizar sua pasta de matrizes acima "
+                "ou cadastrar manualmente."
             )
         else:
             # 1. Métricas / KPIs Resumidas
@@ -325,38 +394,46 @@ with tab_bordados:
             media_preco = sum(b.preco for b in bordados) / total_itens if total_itens else 0
 
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-            kpi1.metric("Total Cadastrado", f"{total_itens} itens")
+            kpi1.metric("Total no Acervo", f"{total_itens} matrizes")
             kpi2.metric("Matrizes Prontas", f"{prontas_count} ({int(prontas_count / total_itens * 100)}%)")
             kpi3.metric("Com Imagens / Fotos", f"{com_imagem_count} itens")
-            kpi4.metric("Preço Médio", f"R$ {media_preco:.2f}")
+            kpi4.metric("Média de Pontos", f"{int(media_pontos):,} pts".replace(",", "."))
 
             st.markdown(" ")
 
             # 2. Barra de Filtros e Modo de Visualização
-            f_col1, f_col2, f_col3, f_col4 = st.columns([2.2, 1.3, 1.3, 1.2])
+            f_col1, f_col2, f_col3, f_col4, f_col5 = st.columns([2.0, 1.2, 1.2, 1.1, 1.1])
             with f_col1:
                 busca_texto = st.text_input(
                     "🔍 Buscar bordado",
-                    placeholder="Filtrar por nome, código ou cores de linha...",
+                    placeholder="Filtrar por nome, código, instituição ou cores...",
                     key="busca_bordado",
                 )
             with f_col2:
+                categorias_existentes = sorted(list(set(b.categoria for b in bordados if b.categoria)))
+                filtro_categoria = st.selectbox(
+                    "Categoria",
+                    options=["Todas"] + categorias_existentes,
+                    key="filtro_categoria_bordado",
+                )
+            with f_col3:
+                subcategorias_existentes = sorted(list(set(b.subcategoria for b in bordados if b.subcategoria)))
+                filtro_subcategoria = st.selectbox(
+                    "Subcategoria / Instituição",
+                    options=["Todas"] + subcategorias_existentes,
+                    key="filtro_subcategoria_bordado",
+                )
+            with f_col4:
                 tipos_existentes = sorted(list(set(b.tipo for b in bordados if b.tipo)))
                 filtro_tipo = st.selectbox(
-                    "Filtrar por Tipo",
+                    "Tipo",
                     options=["Todos"] + tipos_existentes,
                     key="filtro_tipo_bordado",
                 )
-            with f_col3:
-                filtro_status_matriz = st.selectbox(
-                    "Status da Matriz",
-                    options=["Todos", "Matriz Pronta (Sim)", "Matriz Pendente (Não)"],
-                    key="filtro_status_matriz",
-                )
-            with f_col4:
+            with f_col5:
                 modo_exibicao = st.selectbox(
                     "Visualização",
-                    options=["🖼️ Galeria de Fotos", "📋 Tabela Geral"],
+                    options=["🖼️ Galeria", "📋 Tabela"],
                     key="modo_exibicao_bordado",
                 )
 
@@ -368,8 +445,20 @@ with tab_bordados:
                     b
                     for b in bordados_filtrados
                     if termo in b.nome.lower()
+                    or (b.categoria and termo in b.categoria.lower())
+                    or (b.subcategoria and termo in b.subcategoria.lower())
                     or (b.codigo_identificacao and termo in b.codigo_identificacao.lower())
                     or (b.linhas_usadas and termo in b.linhas_usadas.lower())
+                ]
+
+            if filtro_categoria != "Todas":
+                bordados_filtrados = [
+                    b for b in bordados_filtrados if b.categoria == filtro_categoria
+                ]
+
+            if filtro_subcategoria != "Todas":
+                bordados_filtrados = [
+                    b for b in bordados_filtrados if b.subcategoria == filtro_subcategoria
                 ]
 
             if filtro_tipo != "Todos":
@@ -377,39 +466,45 @@ with tab_bordados:
                     b for b in bordados_filtrados if b.tipo == filtro_tipo
                 ]
 
-            if filtro_status_matriz == "Matriz Pronta (Sim)":
-                bordados_filtrados = [
-                    b for b in bordados_filtrados if b.matriz_pronta
-                ]
-            elif filtro_status_matriz == "Matriz Pendente (Não)":
-                bordados_filtrados = [
-                    b for b in bordados_filtrados if not b.matriz_pronta
-                ]
-
             if not bordados_filtrados:
                 st.warning("Nenhum bordado encontrado com os filtros selecionados.")
             else:
                 # MODO 1: GALERIA DE FOTOS
-                if modo_exibicao == "🖼️ Galeria de Fotos":
-                    st.caption(f"Mostrando **{len(bordados_filtrados)}** de **{len(bordados)}** bordados cadastrados:")
+                if modo_exibicao == "🖼️ Galeria":
+                    st.caption(f"Mostrando **{len(bordados_filtrados)}** de **{len(bordados)}** matrizes do acervo:")
                     for b in bordados_filtrados:
                         with st.container(border=True):
                             col_info, col_img1, col_img2 = st.columns([1.5, 1.25, 1.25])
 
                             with col_info:
                                 st.markdown(f"### {b.nome}")
+
+                                # Hierarquia Categoria > Subcategoria
+                                hierarquia = []
+                                if b.categoria:
+                                    hierarquia.append(b.categoria)
+                                if b.subcategoria and b.subcategoria != b.categoria:
+                                    hierarquia.append(b.subcategoria)
+                                if hierarquia:
+                                    st.markdown(f"🏷️ **Grupo:** `{' > '.join(hierarquia)}`")
+
                                 st.markdown(
                                     f"**Código:** `{b.codigo_identificacao or 'N/A'}` | **Tipo:** `{b.tipo}`"
                                 )
-                                st.markdown(
-                                    f"**Pontos:** `{b.pontos:,} pts` | **Preço Bordado:** `R$ {b.preco:.2f}`".replace(",", ".")
-                                )
-                                status_mat = "✅ Sim" if b.matriz_pronta else "⏳ Pendente"
-                                st.markdown(f"**Matriz Pronta:** {status_mat}")
-                                if not b.matriz_pronta or (b.preco_matriz and b.preco_matriz > 0):
-                                    st.markdown(f"**Preço Matriz:** `R$ {b.preco_matriz:.2f}`")
-                                if b.linhas_usadas:
-                                    st.markdown(f"**Linhas / Cores:** {b.linhas_usadas}")
+
+                                detalhes_tecnicos = [f"🧵 `{b.pontos:,} pts`".replace(",", ".")]
+                                if b.largura_mm and b.altura_mm:
+                                    detalhes_tecnicos.append(f"📐 `{b.largura_mm:.1f} x {b.altura_mm:.1f} mm`")
+                                status_mat = "✅ Matriz Pronta" if b.matriz_pronta else "⏳ Matriz Pendente"
+                                detalhes_tecnicos.append(status_mat)
+                                st.markdown(" | ".join(detalhes_tecnicos))
+
+                                # Paleta de Cores estilo IDE com quadradinho de cor ao lado do código e #hex
+                                palette_html = renderizar_chips_cores_html(b.cores_detalhes, b.linhas_usadas)
+                                if palette_html:
+                                    st.markdown(palette_html, unsafe_allow_html=True)
+                                elif b.linhas_usadas:
+                                    st.markdown(f"🧵 **Cores:** `{b.linhas_usadas}`")
 
                                 st.markdown(" ")
                                 # Botões de Ação Direta no Card
@@ -418,8 +513,10 @@ with tab_bordados:
                                 # 1. EDITAR DADOS
                                 with c_act1:
                                     with st.popover("✏️ Editar", key=f"pop_edt_{b.id}"):
-                                        st.markdown(f"**Editar Bordado #{b.id}**")
+                                        st.markdown(f"**Editar Matriz #{b.id}**")
                                         ed_nome = st.text_input("Nome *", value=b.nome, key=f"ed_nom_{b.id}")
+                                        ed_cat = st.text_input("Categoria", value=b.categoria or "", key=f"ed_cat_{b.id}")
+                                        ed_sub = st.text_input("Subcategoria / Instituição", value=b.subcategoria or "", key=f"ed_sub_{b.id}")
                                         ed_tipo = st.selectbox(
                                             "Tipo *",
                                             options=["Logo Fixo", "Brasão", "Desenho", "Texto", "Aplique", "Escudo", "Outro"],
@@ -433,18 +530,10 @@ with tab_bordados:
                                         )
                                         ed_cod = st.text_input("Código", value=b.codigo_identificacao or "", key=f"ed_cod_{b.id}")
                                         ed_pts = st.number_input("Pontos *", min_value=0, value=int(b.pontos), step=500, key=f"ed_pts_{b.id}")
-                                        ed_prc = st.number_input("Preço Bordado (R$) *", min_value=0.0, value=float(b.preco), step=0.50, format="%.2f", key=f"ed_prc_{b.id}")
+                                        ed_larg = st.number_input("Largura (mm)", min_value=0.0, value=float(b.largura_mm or 0.0), step=1.0, format="%.1f", key=f"ed_larg_{b.id}")
+                                        ed_alt = st.number_input("Altura (mm)", min_value=0.0, value=float(b.altura_mm or 0.0), step=1.0, format="%.1f", key=f"ed_alt_{b.id}")
                                         ed_mat = st.selectbox("Matriz Pronta?", options=["Sim", "Não"], index=0 if b.matriz_pronta else 1, key=f"ed_mat_{b.id}")
-                                        ed_prc_mat = st.number_input("Preço Matriz (R$)", min_value=0.0, value=float(b.preco_matriz or 0.0), step=5.00, format="%.2f", key=f"ed_pmat_{b.id}")
-
-                                        cores_atuais = [c.strip() for c in b.linhas_usadas.split(",")] if b.linhas_usadas else []
-                                        ed_cores = st.multiselect(
-                                            "Linhas Usadas",
-                                            options=list(set(CORES_PADRAO + cores_atuais)),
-                                            default=cores_atuais,
-                                            accept_new_options=True,
-                                            key=f"ed_cor_{b.id}",
-                                        )
+                                        ed_linhas = st.text_input("Códigos das Cores", value=b.linhas_usadas or "", key=f"ed_lin_{b.id}")
 
                                         if st.button("💾 Salvar Alterações", key=f"btn_salv_ed_{b.id}", type="primary"):
                                             if not ed_nome.strip():
@@ -454,11 +543,13 @@ with tab_bordados:
                                                     bordado_id=b.id,
                                                     nome=ed_nome.strip(),
                                                     tipo=str(ed_tipo).strip(),
+                                                    categoria=ed_cat.strip() if ed_cat.strip() else None,
+                                                    subcategoria=ed_sub.strip() if ed_sub.strip() else None,
                                                     pontos=int(ed_pts),
-                                                    preco=float(ed_prc),
+                                                    largura_mm=float(ed_larg) if ed_larg > 0 else None,
+                                                    altura_mm=float(ed_alt) if ed_alt > 0 else None,
                                                     matriz_pronta=(ed_mat == "Sim"),
-                                                    preco_matriz=float(ed_prc_mat),
-                                                    linhas_usadas=", ".join(ed_cores) if ed_cores else None,
+                                                    linhas_usadas=ed_linhas.strip() if ed_linhas.strip() else None,
                                                     codigo_identificacao=ed_cod.strip() if ed_cod.strip() else None,
                                                 )
                                                 st.success("Dados atualizados com sucesso!")
@@ -534,18 +625,20 @@ with tab_bordados:
                     for b in bordados_filtrados:
                         tem_digital = "🖼️ Sim" if b.imagem_digital and os.path.exists(b.imagem_digital) else "-"
                         tem_foto = "📸 Sim" if b.foto_bordado and os.path.exists(b.foto_bordado) else "-"
+                        dim_str = f"{b.largura_mm:.1f} x {b.altura_mm:.1f} mm" if (b.largura_mm and b.altura_mm) else "-"
 
                         dados_bordados.append(
                             {
                                 "ID": b.id,
                                 "Código": b.codigo_identificacao or "-",
                                 "Nome": b.nome,
+                                "Categoria": b.categoria or "-",
+                                "Subcategoria": b.subcategoria or "-",
                                 "Tipo": b.tipo,
                                 "Pontos": b.pontos,
-                                "Preço Bordado": b.preco,
+                                "Dimensões": dim_str,
                                 "Matriz Pronta": b.matriz_pronta,
-                                "Preço Matriz": b.preco_matriz or 0.0,
-                                "Linhas / Cores": b.linhas_usadas or "-",
+                                "Cores (Códigos)": b.linhas_usadas or "-",
                                 "Arte Digital": tem_digital,
                                 "Foto Real": tem_foto,
                             }
@@ -561,12 +654,13 @@ with tab_bordados:
                             "ID": st.column_config.NumberColumn("ID", format="%d", width="small"),
                             "Código": st.column_config.TextColumn("Código", width="small"),
                             "Nome": st.column_config.TextColumn("Nome", width="medium"),
+                            "Categoria": st.column_config.TextColumn("Categoria", width="small"),
+                            "Subcategoria": st.column_config.TextColumn("Subcategoria", width="small"),
                             "Tipo": st.column_config.TextColumn("Tipo", width="small"),
                             "Pontos": st.column_config.NumberColumn("Pontos", format="%d pts", width="small"),
-                            "Preço Bordado": st.column_config.NumberColumn("Preço Bordado", format="R$ %.2f", width="small"),
+                            "Dimensões": st.column_config.TextColumn("Dimensões", width="small"),
                             "Matriz Pronta": st.column_config.CheckboxColumn("Matriz Pronta", width="small"),
-                            "Preço Matriz": st.column_config.NumberColumn("Preço Matriz", format="R$ %.2f", width="small"),
-                            "Linhas / Cores": st.column_config.TextColumn("Linhas / Cores", width="medium"),
+                            "Cores (Códigos)": st.column_config.TextColumn("Cores (Códigos)", width="medium"),
                             "Arte Digital": st.column_config.TextColumn("Arte Digital", width="small"),
                             "Foto Real": st.column_config.TextColumn("Foto Real", width="small"),
                         },
@@ -574,7 +668,7 @@ with tab_bordados:
 
                     c_tot, c_acao = st.columns([3, 1])
                     with c_tot:
-                        st.caption(f"Mostrando **{len(bordados_filtrados)}** de **{len(bordados)}** bordados cadastrados.")
+                        st.caption(f"Mostrando **{len(bordados_filtrados)}** de **{len(bordados)}** matrizes cadastradas.")
 
                     with c_acao:
                         with st.popover("🗑️ Excluir Bordado do Acervo"):

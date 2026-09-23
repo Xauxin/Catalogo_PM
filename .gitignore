@@ -24,6 +24,15 @@ banco.db
 # Arquivos temporários e uploads locais
 uploads/
 lote/
+matrizes/
+*.dst
+*.DST
+*.pes
+*.PES
+*.exp
+*.EXP
+*.jef
+*.JEF
 
 # Editores e ferramentas de IA
 .vscode/

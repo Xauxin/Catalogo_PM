@@ -418,7 +418,17 @@ with col_esquerda:
                     # Busca bordados cadastrados no catálogo para sugestão inteligente
                     try:
                         catalogo_b = CatalogoRepository.listar_templates_bordado()
-                        sugestoes_b = {b.nome: b for b in catalogo_b}
+                        sugestoes_b = {}
+                        for b in catalogo_b:
+                            prefix = ""
+                            if b.categoria and b.subcategoria and b.categoria != b.subcategoria:
+                                prefix = f"[{b.categoria} > {b.subcategoria}] "
+                            elif b.categoria:
+                                prefix = f"[{b.categoria}] "
+                            elif b.subcategoria:
+                                prefix = f"[{b.subcategoria}] "
+                            rotulo = f"{prefix}{b.nome}"
+                            sugestoes_b[rotulo] = b
                     except Exception:
                         sugestoes_b = {}
 
