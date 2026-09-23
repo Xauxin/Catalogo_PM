@@ -1,4 +1,12 @@
 import os
+import sys
+from pathlib import Path
+
+# Garante que a raiz do projeto esteja no sys.path mesmo se executado dentro da pasta core/
+raiz_projeto = Path(__file__).resolve().parent.parent
+if str(raiz_projeto) not in sys.path:
+    sys.path.insert(0, str(raiz_projeto))
+
 from sqlmodel import SQLModel, Session, create_engine
 
 # 1. Tenta obter a URL do banco das variáveis de ambiente ou dos secrets do Streamlit

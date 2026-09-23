@@ -9,14 +9,14 @@ from core.repository import CatalogoRepository
 
 
 def criar_tabelas():
-    print("⏳ Criando tabelas no banco de dados...")
+    print("Criando tabelas no banco de dados...")
     # Este comando lê todos os modelos importados e cria as tabelas correspondentes
     SQLModel.metadata.create_all(engine)
-    print("✅ Tabelas criadas com sucesso!")
+    print("Tabelas criadas com sucesso!")
 
 
 def popular_catalogo_inicial():
-    print("⏳ Povoando catálogo inicial de peças...")
+    print("Povoando catalogo inicial de pecas...")
     templates_existentes = CatalogoRepository.listar_templates()
 
     if not templates_existentes:
@@ -30,12 +30,19 @@ def popular_catalogo_inicial():
         CatalogoRepository.salvar_template_peca(
             "Boné Tactel", ["Frente", "Lateral Esquerda"]
         )
-        print("✅ Catálogo inicial inserido com sucesso!")
+        print("Catalogo inicial inserido com sucesso!")
     else:
-        print("⚡ O catálogo já possui peças cadastradas. Pulando esta etapa.")
+        print("O catalogo ja possui pecas cadastradas. Pulando esta etapa.")
 
 
 if __name__ == "__main__":
-    criar_tabelas()
+    if engine.url.drivername.startswith("sqlite"):
+        print("[LOCAL] Conectado ao banco: SQLite Local (banco.db)")
+        print("Dica: Para conectar ao Supabase, configure o arquivo .streamlit/secrets.toml")
+    else:
+        print(f"[NUVEM] Conectado ao banco: PostgreSQL ({engine.url.host})")
 
-    print("🚀 Banco de dados pronto para uso!")
+    criar_tabelas()
+    popular_catalogo_inicial()
+
+    print("Banco de dados pronto para uso!")
