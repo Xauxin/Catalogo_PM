@@ -8,6 +8,9 @@ from utils.ecosystem_data import load_ecosystem_data
 
 FONTES_DISPONIVEIS, ESPECIALIDADES_PRONTAS, ESPACAMENTO_LOCAL = load_ecosystem_data()
 
+from utils.auth import verificar_autenticacao
+verificar_autenticacao()
+
 
 def limpar_lista_colunas(colunas, valores_a_remover=[]):
     if not valores_a_remover:

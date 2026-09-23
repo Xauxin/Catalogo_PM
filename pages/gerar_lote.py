@@ -9,9 +9,12 @@ from core.repository import CatalogoRepository, LoteRepository
 from utils.ecosystem_data import load_ecosystem_data
 
 try:
-    st.set_page_config( layout="wide")
+    st.set_page_config(layout="wide")
 except Exception:
     pass
+
+from utils.auth import verificar_autenticacao
+verificar_autenticacao()
 
 # CSS compacto para ajuste 16:9 em tela única (elimina margens excessivas)
 st.markdown(

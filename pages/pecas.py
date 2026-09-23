@@ -46,6 +46,9 @@ def salvar_arquivo_upload(uploaded_file, prefixo: str) -> str | None:
 
 st.set_page_config(page_title="Gestão do Catálogo", page_icon="🏷️", layout="wide")
 
+from utils.auth import verificar_autenticacao
+verificar_autenticacao()
+
 st.title("🏷️ Gestão do Catálogo")
 st.caption(
     "Gerencie o catálogo de peças confeccionadas e o acervo completo de bordados, matrizes e imagens."

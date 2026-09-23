@@ -11,6 +11,9 @@ from core.repository import LoteRepository
 
 st.set_page_config(page_title="Gestão de Lotes", page_icon="📑", layout="wide")
 
+from utils.auth import verificar_autenticacao
+verificar_autenticacao()
+
 st.title("📑 Acompanhamento e Gestão de Lotes")
 st.caption("Consulte pedidos cadastrados, acompanhe as peças/bordados e gerencie o status de produção.")
 
