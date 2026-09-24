@@ -34,7 +34,9 @@ class LocalBordado(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
 
-    template_peca_id: Optional[int] = Field(default=None, foreign_key="templatepeca.id")
+    template_peca_id: Optional[int] = Field(
+        default=None, foreign_key="templatepeca.id", index=True
+    )
     
     # Usando o caminho completo do módulo aqui também
     template_peca: "core.models.TemplatePeca" = Relationship(
@@ -99,11 +101,13 @@ class Peca(SQLModel, table=True):
     quantidade: int = Field(default=1)
     preco_peca_total: float = Field(default=0.0)
 
-    lote_id: Optional[int] = Field(default=None, foreign_key="lote.id")
+    lote_id: Optional[int] = Field(default=None, foreign_key="lote.id", index=True)
     # Caminho completo
     lote: Optional["core.models.Lote"] = Relationship(back_populates="pecas")
 
-    template_peca_id: Optional[int] = Field(default=None, foreign_key="templatepeca.id")
+    template_peca_id: Optional[int] = Field(
+        default=None, foreign_key="templatepeca.id", index=True
+    )
     # Caminho completo
     template: Optional["core.models.TemplatePeca"] = Relationship(
         back_populates="pecas_pedidas"
@@ -138,8 +142,10 @@ class Bordado(SQLModel, table=True):
     preco_matriz: Optional[float] = Field(default=0.0)
     preco_bordado: float = Field(default=0.0)
 
-    peca_id: Optional[int] = Field(default=None, foreign_key="peca.id")
+    peca_id: Optional[int] = Field(default=None, foreign_key="peca.id", index=True)
     # Caminho completo
     peca: Optional["core.models.Peca"] = Relationship(back_populates="bordados")
 
-    local_bordado_id: Optional[int] = Field(default=None, foreign_key="localbordado.id")
+    local_bordado_id: Optional[int] = Field(
+        default=None, foreign_key="localbordado.id", index=True
+    )

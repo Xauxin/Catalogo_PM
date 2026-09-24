@@ -136,6 +136,13 @@ def indexar_arquivos(pasta_base: Path):
                     categoria = "Geral"
                     subcategoria = None
 
+                # Remove prefixo redundante do tipo no nome do arquivo (ex: "Brasão Medicina..." -> "Medicina...")
+                prefixos_remover = [tipo.lower(), "brasão", "brasao", "logo fixo", "logo"]
+                for pref in prefixos_remover:
+                    if nome_matriz.lower().startswith(pref + " "):
+                        nome_matriz = nome_matriz[len(pref) + 1:].strip()
+                        break
+
                 # 2. Busca imagem de preview com o mesmo nome na mesma pasta
                 imagem_digital = None
                 for ext_img in EXTENSOES_IMAGEM:

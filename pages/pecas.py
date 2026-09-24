@@ -236,12 +236,20 @@ with tab_bordados:
         with st.form("form_novo_bordado", clear_on_submit=True):
             col_b1, col_b2, col_b3 = st.columns([2.2, 1.4, 1.4])
             with col_b1:
-                nome_sug = Path(up_matriz_auto.name).stem.replace("_", " ").strip() if up_matriz_auto else ""
+                nome_sug = ""
+                if up_matriz_auto:
+                    nome_raw = Path(up_matriz_auto.name).stem.replace("_", " ").strip()
+                    for pref in ["brasão", "brasao", "logo fixo", "logo"]:
+                        if nome_raw.lower().startswith(pref + " "):
+                            nome_raw = nome_raw[len(pref) + 1:].strip()
+                            break
+                    nome_sug = nome_raw
+
                 nome_bordado = st.text_input(
                     "Nome do Bordado / Matriz *",
                     value=nome_sug,
-                    placeholder="Ex: Brasão Medicina Unicesumar",
-                    help="Nome de identificação do bordado",
+                    placeholder="Ex: Medicina Unicesumar",
+                    help="Nome de identificação do bordado (sem precisar repetir o tipo)",
                 )
             with col_b2:
                 categorias_existentes = CatalogoRepository.listar_categorias_matriz()
@@ -547,7 +555,7 @@ with tab_bordados:
 
                         texto_cores = f"{qtd_cores} cor" if qtd_cores == 1 else f"{qtd_cores} cores"
                         pontos_formatado = f"{b.pontos:,}".replace(",", ".")
-                        titulo_card = f"**{b.nome}** — {texto_cores} | {pontos_formatado} pts"
+                        titulo_card = f"[{b.tipo}] **{b.nome}** — {texto_cores} | {pontos_formatado} pts"
 
                         col_card, col_edit, col_del = st.columns([12, 1.5, 1.5], vertical_alignment="top")
 
@@ -586,7 +594,7 @@ with tab_bordados:
                                         st.caption("Sem foto real")
 
                                     with st.popover("Fotos", key=f"pop_fot_{b.id}"):
-                                        st.markdown(f"**Atualizar Fotos:** {b.nome}")
+                                        st.markdown(f"**Atualizar Fotos:** [{b.tipo}] {b.nome}")
                                         nova_dig = st.file_uploader("Arte Digital", type=["png", "jpg", "jpeg", "webp"], key=f"alt_dig_{b.id}")
                                         nova_foto = st.file_uploader("Foto Real", type=["png", "jpg", "jpeg", "webp"], key=f"alt_foto_{b.id}")
                                         if st.button("Salvar Fotos", key=f"btn_salv_fotos_{b.id}", type="primary"):
@@ -654,7 +662,7 @@ with tab_bordados:
 
                         with col_del:
                             with st.popover("Excluir", help=f"Excluir {b.nome}", use_container_width=True):
-                                st.markdown(f"Excluir **{b.nome}**?")
+                                st.markdown(f"Excluir **[{b.tipo}] {b.nome}**?")
                                 st.caption("Esta ação não poderá ser desfeita.")
                                 if st.button("Confirmar Exclusão", key=f"btn_card_del_{b.id}", type="primary", use_container_width=True):
                                     if CatalogoRepository.deletar_template_bordado(b.id):
@@ -718,7 +726,7 @@ with tab_bordados:
                         with st.popover("Excluir Bordado"):
                             st.markdown("**Remover bordado**")
                             opcoes_b = {
-                                f"{b.nome} ({b.codigo_identificacao or f'ID: {b.id}'})": b.id
+                                f"[{b.tipo}] {b.nome} ({b.codigo_identificacao or f'ID: {b.id}'})": b.id
                                 for b in bordados
                             }
                             bordado_sel = st.selectbox(
