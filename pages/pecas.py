@@ -176,9 +176,10 @@ with tab_bordados:
     # ---------------------------------------------------------------------
     with st.expander("Sincronizar Pasta do Acervo (Logos, Brasões e Matrizes)", expanded=False):
         st.markdown(
-            "Esta ferramenta analisa sua pasta local de matrizes organizada por assuntos/instituições "
-            "(ex: `matrizes/logos_e_brasoes/Faculdades/Unicesumar/Medicina.dst`), lê os arquivos com o **pyembroidery**, "
-            "extrai **pontos, dimensões (mm), trocas de cor e códigos de linha** e sincroniza direto com o banco de dados."
+            "Esta ferramenta analisa sua pasta local de matrizes organizada por **Tipo, Categoria e Subcategoria** "
+            "(ex: `matrizes/Brasão/Faculdades/Unicesumar/Medicina.dst` ou `matrizes/Logo/Faculdades/Unicesumar/Medicina.dst`), "
+            "lê os arquivos com o **pyembroidery**, extrai **pontos, dimensões (mm), trocas de cor e códigos de linha** "
+            "e sincroniza direto com o banco de dados."
         )
         c_sync1, c_sync2 = st.columns([3, 1])
         with c_sync1:

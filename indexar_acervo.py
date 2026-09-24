@@ -29,14 +29,35 @@ from utils.embroidery_reader import extrair_dados_matriz
 
 # Pastas padrão onde o acervo pode ser colocado
 PASTAS_ACERVO = [
-    Path("matrizes/logos_e_brasoes"),
     Path("matrizes"),
+    Path("matrizes/logos_e_brasoes"),
     Path("logos_e_brasoes"),
     Path("ESPECIALIDADES_PRONTAS"),
 ]
 
 EXTENSOES_BORDADO = {".dst", ".pes", ".exp", ".jef", ".vp3", ".xxx"}
 EXTENSOES_IMAGEM = {".png", ".jpg", ".jpeg", ".webp"}
+
+
+def normalizar_tipo(pasta_tipo: str) -> str:
+    """Normaliza o nome da pasta de tipo para um padrão consistente."""
+    limpo = pasta_tipo.replace("_", " ").strip()
+    low = limpo.lower()
+    if low in ["brasao", "brasão", "brasoes", "brasões"]:
+        return "Brasão"
+    if low in ["logo", "logos"]:
+        return "Logo"
+    if low in ["logo fixo", "logofixo"]:
+        return "Logo Fixo"
+    if low in ["logos e brasoes", "logos e brasões", "logo/brasao", "logo/brasão"]:
+        return "Logo/Brasão"
+    if low in ["desenho", "desenhos"]:
+        return "Desenho"
+    if low in ["escudo", "escudos"]:
+        return "Escudo"
+    if low in ["aplique", "apliques"]:
+        return "Aplique"
+    return limpo.title() if limpo.islower() else limpo
 
 
 def localizar_pasta_acervo(caminho_especifico: str = None) -> Path:
@@ -51,7 +72,7 @@ def localizar_pasta_acervo(caminho_especifico: str = None) -> Path:
             return p
 
     # Se nenhuma existir, cria a pasta padrão sugerida
-    padrao = Path("matrizes/logos_e_brasoes")
+    padrao = Path("matrizes")
     padrao.mkdir(parents=True, exist_ok=True)
     return padrao
 
@@ -71,10 +92,11 @@ def indexar_arquivos(pasta_base: Path):
     if not arquivos_encontrados:
         print(f"ℹ️ Nenhum arquivo de bordado ({', '.join(EXTENSOES_BORDADO)}) encontrado na pasta.")
         print(f"👉 Dica: Coloque seus arquivos organizados dentro de: {pasta_base.resolve()}")
-        print(f"   Exemplo de estrutura:")
-        print(f"   {pasta_base}/Faculdades/Unicesumar/Medicina.dst")
-        print(f"   {pasta_base}/Cursos/Direito.dst")
-        print(f"   {pasta_base}/Empresas/Logo_Empresa.dst")
+        print(f"   Exemplo de estrutura (Tipo / Categoria / Subcategoria / Arquivo):")
+        print(f"   {pasta_base}/Brasão/Faculdades/Unicesumar/Medicina.dst")
+        print(f"   {pasta_base}/Logo/Faculdades/Unicesumar/Logo_Unicesumar.dst")
+        print(f"   {pasta_base}/Brasão/Cursos/Direito.dst")
+        print(f"   {pasta_base}/Logo/Empresas/Logo_Empresa.dst")
         return
 
     print(f"🔍 Encontrados {len(arquivos_encontrados)} arquivos de matrizes. Processando com pyembroidery...\n")
@@ -86,22 +108,33 @@ def indexar_arquivos(pasta_base: Path):
     with get_session() as session:
         for arq in arquivos_encontrados:
             try:
-                # 1. Determina hierarquia de pastas (Categoria / Subcategoria / Nome)
+                # 1. Determina hierarquia de pastas (Tipo / Categoria / Subcategoria / Nome)
                 rel_path = arq.relative_to(pasta_base)
                 partes = rel_path.parts
 
                 nome_matriz = arq.stem.replace("_", " ").strip()
+                tipo = "Logo Fixo"
                 categoria = "Geral"
                 subcategoria = None
 
-                if len(partes) >= 3:
-                    categoria = partes[0].replace("_", " ").strip()
-                    subcategoria = partes[1].replace("_", " ").strip()
+                # A primeira pasta determina o TIPO (ex: Brasão, Logo, etc.)
+                # As pastas seguintes determinam Categoria e Subcategoria
+                if len(partes) >= 4:
+                    tipo = normalizar_tipo(partes[0])
+                    categoria = partes[1].replace("_", " ").strip()
+                    subcategoria = " > ".join(p.replace("_", " ").strip() for p in partes[2:-1])
+                elif len(partes) == 3:
+                    tipo = normalizar_tipo(partes[0])
+                    categoria = partes[1].replace("_", " ").strip()
+                    subcategoria = None
                 elif len(partes) == 2:
-                    categoria = partes[0].replace("_", " ").strip()
-                    subcategoria = partes[0].replace("_", " ").strip()
+                    tipo = normalizar_tipo(partes[0])
+                    categoria = "Geral"
+                    subcategoria = None
                 else:
-                    categoria = "Logos e Brasões"
+                    tipo = "Logo Fixo"
+                    categoria = "Geral"
+                    subcategoria = None
 
                 # 2. Busca imagem de preview com o mesmo nome na mesma pasta
                 imagem_digital = None
@@ -126,6 +159,7 @@ def indexar_arquivos(pasta_base: Path):
                     (TemplateBordado.arquivo_dst == caminho_rel_salvo)
                     | (
                         (TemplateBordado.nome == nome_matriz)
+                        & (TemplateBordado.tipo == tipo)
                         & (TemplateBordado.categoria == categoria)
                         & (TemplateBordado.subcategoria == subcategoria)
                     )
@@ -134,6 +168,9 @@ def indexar_arquivos(pasta_base: Path):
 
                 if existente:
                     # Atualiza dados técnicos
+                    existente.tipo = tipo
+                    existente.categoria = categoria
+                    existente.subcategoria = subcategoria
                     existente.pontos = dados["pontos"]
                     existente.largura_mm = dados["largura_mm"]
                     existente.altura_mm = dados["altura_mm"]
@@ -141,18 +178,16 @@ def indexar_arquivos(pasta_base: Path):
                     existente.linhas_usadas = dados["linhas_usadas"]
                     existente.cores_detalhes = dados["cores_detalhes"]
                     existente.arquivo_dst = caminho_rel_salvo
-                    existente.categoria = categoria
-                    existente.subcategoria = subcategoria
                     if imagem_digital and not existente.imagem_digital:
                         existente.imagem_digital = imagem_digital
 
                     session.add(existente)
                     atualizados += 1
-                    print(f"🔄 Atualizado: [{categoria} > {subcategoria or '-'}] {nome_matriz} ({dados['pontos']} pts, {dados['linhas_usadas']})")
+                    print(f"🔄 Atualizado: ({tipo}) [{categoria} > {subcategoria or '-'}] {nome_matriz} ({dados['pontos']} pts, {dados['linhas_usadas']})")
                 else:
                     novo = TemplateBordado(
                         nome=nome_matriz,
-                        tipo="Logo/Brasão",
+                        tipo=tipo,
                         categoria=categoria,
                         subcategoria=subcategoria,
                         arquivo_dst=caminho_rel_salvo,
@@ -169,7 +204,7 @@ def indexar_arquivos(pasta_base: Path):
                     )
                     session.add(novo)
                     novos += 1
-                    print(f"✨ Cadastrado: [{categoria} > {subcategoria or '-'}] {nome_matriz} ({dados['pontos']} pts, {dados['linhas_usadas']})")
+                    print(f"✨ Cadastrado: ({tipo}) [{categoria} > {subcategoria or '-'}] {nome_matriz} ({dados['pontos']} pts, {dados['linhas_usadas']})")
 
             except Exception as e:
                 print(f"❌ Erro ao processar {arq}: {type(e).__name__} - {e}")

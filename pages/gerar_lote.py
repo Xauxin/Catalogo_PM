@@ -272,10 +272,9 @@ with col_esquerda:
             tipo_salvo = st.session_state.get(f"tipo_{loc}_{it}", "Texto")
             if tipo_salvo == "Texto":
                 nome_val = st.session_state.get(f"nome_{loc}_{it}")
-                esp_val = st.session_state.get(f"sel_esp_{loc}_{it}")
                 fon_val = st.session_state.get(f"sel_fon_{loc}_{it}")
                 cor_val = st.session_state.get(f"sel_cor_{loc}_{it}")
-                completo = bool(nome_val and esp_val and fon_val and cor_val)
+                completo = bool(nome_val and fon_val and cor_val)
             else:
                 nome_val = st.session_state.get(f"logo_{loc}_{it}")
                 mat_val = st.session_state.get(f"sel_mat_{loc}_{it}")
@@ -288,12 +287,18 @@ with col_esquerda:
 
         for idx, local in enumerate(locais_selecionados):
             with tabs[idx]:
+                tipos_matriz = CatalogoRepository.listar_tipos_matriz()
+                opcoes_tipo = ["Texto"] + [t for t in tipos_matriz if t != "Texto"]
+                tipo_salvo = st.session_state.get(f"tipo_{local}_{it}", "Texto")
+                idx_tipo = opcoes_tipo.index(tipo_salvo) if tipo_salvo in opcoes_tipo else 0
+
                 col_tipo, col_nome, col_pun = st.columns([1.3, 2.5, 1.2])
 
                 with col_tipo:
                     tipo = st.selectbox(
                         "Tipo *",
-                        ["Texto", "Logo Fixo", "Brasão"],
+                        options=opcoes_tipo,
+                        index=idx_tipo,
                         key=f"tipo_{local}_{it}",
                     )
 
@@ -316,10 +321,10 @@ with col_esquerda:
                     c_esp, c_fon, c_cor = st.columns([1.8, 1.6, 1.6])
                     with c_esp:
                         especialidade = st.selectbox(
-                            "Especialidade *",
+                            "Especialidade",
                             options=st.session_state.historico_especialidades,
                             index=None,
-                            placeholder="Selecione ou digite...",
+                            placeholder="Selecione ou digite (opcional)...",
                             accept_new_options=True,
                             key=f"sel_esp_{local}_{it}",
                         )
@@ -360,30 +365,22 @@ with col_esquerda:
                         "preco_matriz": 0.00,
                     }
 
-                else:  # Logo Fixo ou Brasão
-                    # Busca bordados cadastrados no catálogo para sugestão inteligente
+                else:  # Matrizes de bordado cadastradas filtradas pelo Tipo selecionado
                     try:
                         catalogo_b = CatalogoRepository.listar_templates_bordado()
                         sugestoes_b = {}
                         for b in catalogo_b:
-                            prefix = ""
-                            if b.categoria and b.subcategoria and b.categoria != b.subcategoria:
-                                prefix = f"[{b.categoria} > {b.subcategoria}] "
-                            elif b.categoria:
-                                prefix = f"[{b.categoria}] "
-                            elif b.subcategoria:
-                                prefix = f"[{b.subcategoria}] "
-                            rotulo = f"{prefix}{b.nome}"
-                            sugestoes_b[rotulo] = b
+                            if b.tipo and b.tipo.strip().lower() == str(tipo).strip().lower():
+                                sugestoes_b[b.nome] = b
                     except Exception:
                         sugestoes_b = {}
 
                     with col_nome:
                         nome_bordado = st.selectbox(
-                            f"Nome do {tipo} / Catálogo *",
+                            f"Nome do {tipo} *",
                             options=list(sugestoes_b.keys()),
                             index=None,
-                            placeholder="Selecione do catálogo ou digite...",
+                            placeholder=f"Selecione {tipo} do catálogo ou digite...",
                             accept_new_options=True,
                             key=f"logo_{local}_{it}",
                         )
@@ -475,8 +472,6 @@ with col_esquerda:
                     campos_faltando = []
                     if not dados.get("nome_texto"):
                         campos_faltando.append("Nome")
-                    if not dados.get("especialidade"):
-                        campos_faltando.append("Especialidade")
                     if not dados.get("fonte"):
                         campos_faltando.append("Fonte")
                     if not dados.get("cor"):
