@@ -74,9 +74,13 @@ with tab_pecas:
                 )
 
             with col_locais:
-                locais_input = st.text_input(
-                    "Locais de Bordado (separe por vírgula)",
-                    placeholder="Ex: Peito Esquerdo, Costas, Manga Direita, Gola",
+                locais_cadastrados = CatalogoRepository.listar_todos_os_locais()
+                locais_selecionados = st.multiselect(
+                    "Locais de Bordado *",
+                    options=locais_cadastrados,
+                    placeholder="Selecione ou digite novos locais...",
+                    accept_new_options=True,
+                    help="Selecione locais já cadastrados ou digite novos e pressione Enter para adicionar",
                 )
 
             st.markdown(" ")
@@ -85,11 +89,11 @@ with tab_pecas:
             if botao_salvar:
                 if not nome_peca.strip():
                     st.error("O nome da peça é obrigatório.")
-                elif not locais_input.strip():
-                    st.error("Digite pelo menos um local de bordado.")
+                elif not locais_selecionados:
+                    st.error("Selecione ou adicione pelo menos um local de bordado.")
                 else:
                     lista_locais = [
-                        local.strip() for local in locais_input.split(",") if local.strip()
+                        local.strip() for local in locais_selecionados if local.strip()
                     ]
 
                     try:
@@ -239,26 +243,36 @@ with tab_bordados:
                     help="Nome de identificação do bordado",
                 )
             with col_b2:
+                categorias_existentes = CatalogoRepository.listar_categorias_matriz()
                 categoria_sug = st.selectbox(
                     "Categoria *",
-                    options=["Faculdades", "Cursos", "Empresas", "Hospitais & Clínicas", "Brasões", "Geral", "Outro"],
+                    options=categorias_existentes,
+                    index=None,
+                    placeholder="Selecione ou digite...",
                     accept_new_options=True,
-                    help="Assunto principal ou grupo",
+                    help="Assunto principal ou grupo (apenas cadastradas ou nova)",
                 )
             with col_b3:
-                subcategoria_sug = st.text_input(
+                subcategorias_existentes = CatalogoRepository.listar_subcategorias_matriz()
+                subcategoria_sug = st.selectbox(
                     "Subcategoria / Instituição",
-                    placeholder="Ex: Unicesumar, Uningá, Integrado...",
-                    help="Instituição, faculdade, especialidade ou cliente específico",
+                    options=subcategorias_existentes,
+                    index=None,
+                    placeholder="Selecione ou digite...",
+                    accept_new_options=True,
+                    help="Instituição, faculdade, especialidade ou cliente específico (apenas cadastradas ou nova)",
                 )
 
             col_t1, col_t2, col_t3 = st.columns([1.5, 1.5, 1.5])
             with col_t1:
+                tipos_existentes = CatalogoRepository.listar_tipos_matriz()
                 tipo_bordado = st.selectbox(
                     "Tipo *",
-                    options=["Logo Fixo", "Brasão", "Desenho", "Texto", "Aplique", "Escudo", "Outro"],
+                    options=tipos_existentes,
+                    index=0 if tipos_existentes else None,
+                    placeholder="Selecione ou digite...",
                     accept_new_options=True,
-                    help="Tipo ou categoria do bordado",
+                    help="Tipo ou categoria do bordado (apenas cadastrados ou novo)",
                 )
             with col_t2:
                 codigo_identificacao = st.text_input(
@@ -291,12 +305,26 @@ with tab_bordados:
                     help="Indica se a matriz computadorizada já está digitalizada e pronta",
                 )
 
-            cores_auto_str = dados_auto.get("linhas_usadas", "")
-            linhas_usadas_input = st.text_input(
-                "Códigos das Cores da Linha (separados por vírgula)",
-                value=cores_auto_str,
-                placeholder="Ex: 5605, 5088, 5593, #000080",
-                help="Apenas os códigos numéricos ou hexadecimais das cores",
+            mapa_cores_cadastradas = CatalogoRepository.listar_cores_matriz_cadastradas()
+            opcoes_cores = sorted(list(mapa_cores_cadastradas.keys()))
+
+            cores_do_arquivo = []
+            if dados_auto and dados_auto.get("linhas_usadas"):
+                for c in dados_auto["linhas_usadas"].split(","):
+                    c_limpo = c.strip()
+                    if c_limpo and not c_limpo.endswith("cores"):
+                        cores_do_arquivo.append(c_limpo)
+                        if c_limpo not in opcoes_cores:
+                            opcoes_cores.append(c_limpo)
+                opcoes_cores = sorted(list(set(opcoes_cores)))
+
+            cores_selecionadas = st.multiselect(
+                "Códigos das Cores da Linha",
+                options=opcoes_cores,
+                default=cores_do_arquivo,
+                accept_new_options=False,
+                placeholder="Selecione os códigos de cores já cadastrados no catálogo...",
+                help="Apenas códigos de cores já cadastrados com referência visual (sem novos cadastros sem hex associado)",
             )
 
             col_img_d, col_img_f = st.columns(2)
@@ -346,21 +374,40 @@ with tab_bordados:
                             else None
                         )
 
+                        linhas_usadas_salvar = ", ".join(cores_selecionadas) if cores_selecionadas else None
+
+                        if dados_auto and dados_auto.get("cores_detalhes") and cores_selecionadas == cores_do_arquivo:
+                            detalhes_salvar = dados_auto["cores_detalhes"]
+                        elif cores_selecionadas:
+                            detalhes_lista = []
+                            for idx, cod in enumerate(cores_selecionadas):
+                                hex_c = mapa_cores_cadastradas.get(cod) or "#888888"
+                                detalhes_lista.append({
+                                    "posicao": idx + 1,
+                                    "codigo": cod,
+                                    "descricao": None,
+                                    "marca": None,
+                                    "hex": hex_c
+                                })
+                            detalhes_salvar = json.dumps(detalhes_lista, ensure_ascii=False)
+                        else:
+                            detalhes_salvar = None
+
                         novo_bordado = TemplateBordado(
                             nome=nome_bordado.strip(),
-                            categoria=str(categoria_sug).strip() if categoria_sug else None,
-                            subcategoria=str(subcategoria_sug).strip() if subcategoria_sug.strip() else None,
+                            categoria=str(categoria_sug).strip() if categoria_sug and str(categoria_sug).strip() else None,
+                            subcategoria=str(subcategoria_sug).strip() if subcategoria_sug and str(subcategoria_sug).strip() else None,
                             tipo=str(tipo_bordado).strip(),
                             pontos=int(pontos),
                             largura_mm=float(largura_input) if largura_input > 0 else None,
                             altura_mm=float(altura_input) if altura_input > 0 else None,
-                            trocas_cor=int(dados_auto.get("trocas_cor", 0)),
+                            trocas_cor=int(dados_auto.get("trocas_cor", 0)) if dados_auto else max(0, len(cores_selecionadas) - 1),
                             preco=0.0,
                             matriz_pronta=(matriz_pronta_opt == "Sim"),
                             preco_matriz=0.0,
-                            linhas_usadas=linhas_usadas_input.strip() if linhas_usadas_input.strip() else None,
-                            cores_detalhes=dados_auto.get("cores_detalhes"),
-                            codigo_identificacao=codigo_identificacao.strip() if codigo_identificacao.strip() else None,
+                            linhas_usadas=linhas_usadas_salvar,
+                            cores_detalhes=detalhes_salvar,
+                            codigo_identificacao=codigo_identificacao.strip() if codigo_identificacao and codigo_identificacao.strip() else None,
                             imagem_digital=caminho_digital,
                             foto_bordado=caminho_foto,
                         )
@@ -553,16 +600,27 @@ with tab_bordados:
                             with st.popover("Editar", help=f"Editar {b.nome}", use_container_width=True):
                                 st.markdown(f"**Editar Matriz #{b.id}**")
                                 ed_nome = st.text_input("Nome *", value=b.nome, key=f"ed_nom_{b.id}")
-                                ed_cat = st.text_input("Categoria", value=b.categoria or "", key=f"ed_cat_{b.id}")
-                                ed_sub = st.text_input("Subcategoria / Instituição", value=b.subcategoria or "", key=f"ed_sub_{b.id}")
+                                ed_cat = st.selectbox(
+                                    "Categoria",
+                                    options=categorias_existentes,
+                                    index=categorias_existentes.index(b.categoria) if b.categoria in categorias_existentes else None,
+                                    placeholder="Selecione ou digite...",
+                                    accept_new_options=True,
+                                    key=f"ed_cat_{b.id}",
+                                )
+                                ed_sub = st.selectbox(
+                                    "Subcategoria / Instituição",
+                                    options=subcategorias_existentes,
+                                    index=subcategorias_existentes.index(b.subcategoria) if b.subcategoria in subcategorias_existentes else None,
+                                    placeholder="Selecione ou digite...",
+                                    accept_new_options=True,
+                                    key=f"ed_sub_{b.id}",
+                                )
                                 ed_tipo = st.selectbox(
                                     "Tipo *",
-                                    options=["Logo Fixo", "Brasão", "Desenho", "Texto", "Aplique", "Escudo", "Outro"],
-                                    index=(
-                                        ["Logo Fixo", "Brasão", "Desenho", "Texto", "Aplique", "Escudo", "Outro"].index(b.tipo)
-                                        if b.tipo in ["Logo Fixo", "Brasão", "Desenho", "Texto", "Aplique", "Escudo", "Outro"]
-                                        else 0
-                                    ),
+                                    options=tipos_existentes,
+                                    index=tipos_existentes.index(b.tipo) if b.tipo in tipos_existentes else None,
+                                    placeholder="Selecione ou digite...",
                                     accept_new_options=True,
                                     key=f"ed_tip_{b.id}",
                                 )

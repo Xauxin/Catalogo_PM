@@ -87,14 +87,8 @@ if "form_iteration" not in st.session_state:
 # 2. CARREGAMENTO DE OPÇÕES HISTÓRICAS (AUTOCOMPLETE)
 # =====================================================================
 def carregar_opcoes_historicas():
-    fontes = ["ARIAL", "Monotype_Corsiva", "Montserrat", "Script", "Times New Roman"]
-    try:
-        fontes_eco, _, _ = load_ecosystem_data()
-        for f in fontes_eco:
-            if f and f not in fontes:
-                fontes.append(f)
-    except Exception:
-        pass
+    fontes = LoteRepository.listar_fontes_cadastradas()
+    cores = LoteRepository.listar_cores_linha_cadastradas()
 
     especialidades = [
         "Cardiologia",
@@ -129,44 +123,11 @@ def carregar_opcoes_historicas():
     except Exception:
         pass
 
-    cores = [
-        "Amarelo",
-        "Azul Claro",
-        "Azul Marinho",
-        "Azul Royal",
-        "Bege",
-        "Bordô",
-        "Branco",
-        "Cinza",
-        "Dourado",
-        "Laranja",
-        "Marrom",
-        "Prata",
-        "Preto",
-        "Rosa",
-        "Verde Bandeira",
-        "Verde Musgo",
-        "Vermelho",
-    ]
-
     try:
-        from core.database import get_session
-        from core.models import Bordado
-        from sqlmodel import select
-
-        with get_session() as session:
-            bordados = session.exec(select(Bordado)).all()
-            for b in bordados:
-                if b.fonte and b.fonte not in fontes and b.fonte != "N/A":
-                    fontes.append(b.fonte)
-                if b.cor and b.cor not in cores and b.cor != "N/A":
-                    cores.append(b.cor)
-                if b.informacao and " - " in b.informacao:
-                    partes = b.informacao.split(" - ", 1)
-                    if len(partes) > 1 and partes[1].strip():
-                        esp = partes[1].strip()
-                        if esp not in especialidades:
-                            especialidades.append(esp)
+        esps_banco = LoteRepository.listar_especialidades_cadastradas()
+        for esp in esps_banco:
+            if esp not in especialidades:
+                especialidades.append(esp)
     except Exception:
         pass
 
@@ -183,53 +144,32 @@ if (
     st.session_state.historico_especialidades = e_ini
     st.session_state.historico_cores = c_ini
 
-locais_padrao = [
-    "Peito Esquerdo",
-    "Peito Direito",
-    "Manga Esquerda",
-    "Manga Direita",
-    "Costas",
-    "Gola",
-    "Frente",
-    "Bolso",
-    "Barra",
-    "Lateral Esquerda",
-    "Lateral Direita",
-]
-
-if "historico_locais" not in st.session_state:
-    st.session_state.historico_locais = locais_padrao
-
-
-# Busca os templates do banco de dados na primeira vez
-if "mock_templates" not in st.session_state:
-    try:
-        templates_do_banco = CatalogoRepository.listar_templates()
-        dicionario_pecas = {}
-        for template in templates_do_banco:
-            locais = (
-                [local.nome for local in template.locais_permitidos]
-                if template.locais_permitidos
-                else []
-            )
-            dicionario_pecas[template.nome] = locais
-
-        if not dicionario_pecas:
-            dicionario_pecas = {"Camisa Polo": ["Peito Esquerdo", "Costas"]}
-
-        st.session_state.mock_templates = dicionario_pecas
-    except Exception as e:
-        st.session_state.mock_templates = {"Camisa Polo": ["Peito Esquerdo"]}
+# Atualiza os templates de peças e locais cadastrados no banco
+try:
+    templates_do_banco = CatalogoRepository.listar_templates()
+    dicionario_pecas = {}
+    for template in templates_do_banco:
+        locais = (
+            [local.nome for local in template.locais_permitidos]
+            if template.locais_permitidos
+            else []
+        )
+        dicionario_pecas[template.nome] = locais
+    st.session_state.mock_templates = dicionario_pecas
+except Exception:
+    if "mock_templates" not in st.session_state:
+        st.session_state.mock_templates = {}
 
 if "historico_pecas" not in st.session_state:
-    pecas_banco = [
-        p
-        for p in st.session_state.mock_templates.keys()
-        if p not in ["Nenhuma peça", "Erro de Conexão"]
-    ]
-    st.session_state.historico_pecas = (
-        pecas_banco if pecas_banco else ["Camisa Polo", "Jaleco", "Pijama Cirúrgico", "Boné"]
-    )
+    st.session_state.historico_pecas = sorted(list(st.session_state.mock_templates.keys()))
+else:
+    for p in st.session_state.mock_templates.keys():
+        if p not in st.session_state.historico_pecas:
+            st.session_state.historico_pecas.append(p)
+    st.session_state.historico_pecas.sort()
+
+if "historico_locais" not in st.session_state:
+    st.session_state.historico_locais = CatalogoRepository.listar_todos_os_locais()
 
 
 def atualizar_preco_matriz(local_chave: str, form_iter: int):
@@ -301,10 +241,16 @@ with col_esquerda:
 
     # Locais associados ao template ou catálogo geral
     locais_do_catalogo = st.session_state.mock_templates.get(peca_selecionada, [])
-    opcoes_locais = list(
-        dict.fromkeys(locais_do_catalogo + st.session_state.historico_locais)
-    )
-    default_locais = [locais_do_catalogo[0]] if locais_do_catalogo else []
+    is_peca_cadastrada = bool(locais_do_catalogo)
+
+    if is_peca_cadastrada:
+        opcoes_locais = list(locais_do_catalogo)
+        default_locais = [locais_do_catalogo[0]] if locais_do_catalogo else []
+    else:
+        # Para peça não cadastrada, lista todos os locais já cadastrados no sistema
+        todos_locais = CatalogoRepository.listar_todos_os_locais()
+        opcoes_locais = todos_locais
+        default_locais = []
 
     locais_selecionados = st.multiselect(
         "Locais de Bordado * (Selecione ou digite novos)",

@@ -1,3 +1,4 @@
+import json
 from sqlalchemy.orm import joinedload, selectinload
 from sqlmodel import select
 
@@ -51,6 +52,18 @@ class CatalogoRepository:
                 session.commit()
                 return True
             return False
+
+    @staticmethod
+    def listar_todos_os_locais() -> list[str]:
+        """Retorna todos os locais de bordado distintos já cadastrados em templates e pedidos."""
+        with get_session() as session:
+            locais_templates = session.exec(select(LocalBordado.nome).distinct()).all()
+            locais_bordados = session.exec(
+                select(Bordado.local).where(Bordado.local != None).distinct()
+            ).all()
+            todos = set(locais_templates + locais_bordados)
+            locais_limpos = {l.strip() for l in todos if l and l.strip()}
+            return sorted(list(locais_limpos))
 
     @staticmethod
     def salvar_template_bordado(template: TemplateBordado) -> TemplateBordado:
@@ -156,6 +169,76 @@ class CatalogoRepository:
                 return True
             return False
 
+    @staticmethod
+    def listar_categorias_matriz() -> list[str]:
+        """Retorna todas as categorias distintas de matrizes de bordado já cadastradas no acervo."""
+        with get_session() as session:
+            statement = (
+                select(TemplateBordado.categoria)
+                .where(TemplateBordado.categoria != None)
+                .distinct()
+            )
+            categorias = session.exec(statement).all()
+            return sorted(list({c.strip() for c in categorias if c and c.strip()}))
+
+    @staticmethod
+    def listar_subcategorias_matriz() -> list[str]:
+        """Retorna todas as subcategorias distintas de matrizes já cadastradas no acervo."""
+        with get_session() as session:
+            statement = (
+                select(TemplateBordado.subcategoria)
+                .where(TemplateBordado.subcategoria != None)
+                .distinct()
+            )
+            subcategorias = session.exec(statement).all()
+            return sorted(list({s.strip() for s in subcategorias if s and s.strip()}))
+
+    @staticmethod
+    def listar_tipos_matriz() -> list[str]:
+        """Retorna todos os tipos distintos de matrizes já cadastrados no acervo."""
+        with get_session() as session:
+            statement = (
+                select(TemplateBordado.tipo)
+                .where(TemplateBordado.tipo != None)
+                .distinct()
+            )
+            tipos = session.exec(statement).all()
+            return sorted(list({t.strip() for t in tipos if t and t.strip()}))
+
+    @staticmethod
+    def listar_cores_matriz_cadastradas() -> dict[str, str]:
+        """
+        Retorna um dicionário mapeando {codigo_linha: hex} de todas as cores de linha
+        já cadastradas no acervo de matrizes.
+        """
+        with get_session() as session:
+            bordados = session.exec(select(TemplateBordado)).all()
+            mapa_cores: dict[str, str] = {}
+            for b in bordados:
+                if b.cores_detalhes:
+                    try:
+                        detalhes = json.loads(b.cores_detalhes)
+                        for item in detalhes:
+                            cod = str(item.get("codigo") or "").strip()
+                            hex_c = str(item.get("hex") or "").strip()
+                            if cod:
+                                if cod not in mapa_cores or (hex_c and hex_c.startswith("#")):
+                                    mapa_cores[cod] = hex_c if hex_c.startswith("#") else "#888888"
+                    except Exception:
+                        pass
+                if b.linhas_usadas:
+                    for pedaco in b.linhas_usadas.split(","):
+                        pedaco = pedaco.strip()
+                        if pedaco and not pedaco.endswith("cores") and pedaco not in mapa_cores:
+                            mapa_cores[pedaco] = "#888888"
+            return mapa_cores
+
+    @staticmethod
+    def listar_codigos_cores_matriz() -> list[str]:
+        """Retorna uma lista ordenada com todos os códigos de cores de linha cadastrados no acervo."""
+        mapa = CatalogoRepository.listar_cores_matriz_cadastradas()
+        return sorted(list(mapa.keys()))
+
 
 # =====================================================================
 # 2. REPOSITÓRIO DA OPERAÇÃO (Lotes e Pedidos)
@@ -247,3 +330,60 @@ class LoteRepository:
                 session.commit()
                 return True
             return False
+
+    @staticmethod
+    def listar_fontes_cadastradas() -> list[str]:
+        """Retorna todas as fontes já cadastradas em bordados e/ou disponíveis no ecossistema."""
+        with get_session() as session:
+            statement = (
+                select(Bordado.fonte)
+                .where(Bordado.fonte != None)
+                .distinct()
+            )
+            fontes_db = session.exec(statement).all()
+            fontes_limpas = {f.strip() for f in fontes_db if f and f.strip() and f.strip() != "N/A"}
+
+            try:
+                from utils.ecosystem_data import load_ecosystem_data
+                fontes_eco, _, _ = load_ecosystem_data()
+                for f in fontes_eco:
+                    if f and f.strip():
+                        fontes_limpas.add(f.strip())
+            except Exception:
+                pass
+
+            return sorted(list(fontes_limpas))
+
+    @staticmethod
+    def listar_cores_linha_cadastradas() -> list[str]:
+        """Retorna todas as cores de linha já cadastradas em bordados ou no acervo de matrizes."""
+        with get_session() as session:
+            statement = (
+                select(Bordado.cor)
+                .where(Bordado.cor != None)
+                .distinct()
+            )
+            cores_db = session.exec(statement).all()
+            cores_limpas = {c.strip() for c in cores_db if c and c.strip() and c.strip() != "N/A"}
+
+            # Puxa também os códigos de cores cadastrados no acervo de matrizes
+            codigos_acervo = CatalogoRepository.listar_codigos_cores_matriz()
+            for cod in codigos_acervo:
+                if cod and cod.strip():
+                    cores_limpas.add(cod.strip())
+
+            return sorted(list(cores_limpas))
+
+    @staticmethod
+    def listar_especialidades_cadastradas() -> list[str]:
+        """Retorna todas as especialidades já extraídas ou utilizadas em bordados."""
+        with get_session() as session:
+            statement = select(Bordado.informacao).where(Bordado.informacao != None)
+            infos = session.exec(statement).all()
+            esps = set()
+            for info in infos:
+                if info and " - " in info:
+                    partes = info.split(" - ", 1)
+                    if len(partes) > 1 and partes[1].strip():
+                        esps.add(partes[1].strip())
+            return sorted(list(esps))
