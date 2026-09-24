@@ -21,7 +21,7 @@ st.markdown(
     """
     <style>
     .block-container {
-        padding-top: 1.2rem !important;
+        padding-top: 3.8rem !important;
         padding-bottom: 0.5rem !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
@@ -269,7 +269,7 @@ col_esquerda, col_direita = st.columns([1.15, 1.0], gap="medium")
 # COLUNA ESQUERDA: CONFIGURADOR DA PEÇA E BORDADOS
 # ---------------------------------------------------------------------
 with col_esquerda:
-    st.markdown("##### 👕 Peça & Bordados")
+    st.markdown("##### Peça e Bordados")
 
     it = st.session_state.form_iteration
 
@@ -318,7 +318,7 @@ with col_esquerda:
     dados_para_salvar = {}
 
     if not locais_selecionados:
-        st.caption("ℹ️ Selecione um ou mais locais acima para preencher os bordados.")
+        st.caption("Selecione um ou mais locais acima para preencher os bordados.")
     else:
         # Abas horizontais compactas para cada local selecionado
         titulos_abas = []
@@ -335,8 +335,8 @@ with col_esquerda:
                 mat_val = st.session_state.get(f"sel_mat_{loc}_{it}")
                 completo = bool(nome_val and mat_val in ["Sim", "Não"])
 
-            icone = "🟢" if completo else "⚪"
-            titulos_abas.append(f"{icone} {loc}")
+            rotulo_aba = f"{loc} (OK)" if completo else loc
+            titulos_abas.append(rotulo_aba)
 
         tabs = st.tabs(titulos_abas)
 
@@ -510,16 +510,16 @@ with col_esquerda:
                     }
 
     botao_adicionar = st.button(
-        "➕ Adicionar Peça e Bordados ao Lote",
+        "Adicionar Peça ao Lote",
         type="primary",
         use_container_width=True,
     )
 
     if botao_adicionar:
         if not peca_selecionada or not str(peca_selecionada).strip():
-            st.error("⚠️ Digite ou selecione o nome da Peça antes de adicionar!")
+            st.error("Digite ou selecione o nome da Peça antes de adicionar.")
         elif not locais_selecionados:
-            st.error("⚠️ Selecione ou digite ao menos um local antes de adicionar à tabela!")
+            st.error("Selecione ou digite ao menos um local antes de adicionar à tabela.")
         else:
             erros_validacao = []
             for local in locais_selecionados:
@@ -537,7 +537,7 @@ with col_esquerda:
                         campos_faltando.append("Cor da Linha")
                     if campos_faltando:
                         erros_validacao.append(
-                            f"📍 **{local}** (Texto): preencha **{', '.join(campos_faltando)}**."
+                            f"**{local}** (Texto): preencha **{', '.join(campos_faltando)}**."
                         )
                 else:
                     campos_faltando = []
@@ -547,12 +547,12 @@ with col_esquerda:
                         campos_faltando.append("Matriz Pronta ('Sim' ou 'Não')")
                     if campos_faltando:
                         erros_validacao.append(
-                            f"📍 **{local}** ({tipo}): preencha **{', '.join(campos_faltando)}**."
+                            f"**{local}** ({tipo}): preencha **{', '.join(campos_faltando)}**."
                         )
 
             if erros_validacao:
                 st.error(
-                    "⚠️ **Preencha os campos obrigatórios antes de adicionar:**\n\n"
+                    "**Preencha os campos obrigatórios antes de adicionar:**\n\n"
                     + "\n".join(f"- {e}" for e in erros_validacao)
                 )
             else:
@@ -626,7 +626,7 @@ with col_esquerda:
                 )
                 st.session_state.lote_salvo_info = None
                 st.session_state.sucesso_adicao = (
-                    f"🎉 {qtd}x '{peca_nome_limpo}' adicionada(s) ao lote!"
+                    f"{qtd}x '{peca_nome_limpo}' adicionada(s) ao lote!"
                 )
                 st.session_state.form_iteration += 1
                 st.rerun()
@@ -635,21 +635,21 @@ with col_esquerda:
 # COLUNA DIREITA: RESUMO DO LOTE, TABELA E SALVAMENTO
 # ---------------------------------------------------------------------
 with col_direita:
-    st.markdown("##### 📋 Resumo do Lote")
+    st.markdown("##### Resumo do Lote")
 
     if st.session_state.get("sucesso_adicao"):
-        st.toast(st.session_state.sucesso_adicao, icon="👕")
+        st.toast(st.session_state.sucesso_adicao)
         st.session_state.sucesso_adicao = None
 
     if st.session_state.get("lote_salvo_info"):
         info_salvo = st.session_state.lote_salvo_info
         st.success(
-            f"🎉 **Lote #{info_salvo['id']} salvo com sucesso!** | "
+            f"**Lote #{info_salvo['id']} salvo com sucesso!** | "
             f"Cliente: **{info_salvo['cliente']}** | **{info_salvo['total_pecas']}** peças (R$ {info_salvo['preco_total']:,.2f})"
         )
         c_novo, c_link = st.columns([1, 1])
         with c_novo:
-            if st.button("➕ Iniciar Novo Lote", type="primary", use_container_width=True):
+            if st.button("Iniciar Novo Lote", type="primary", use_container_width=True):
                 st.session_state.tabela_lote = st.session_state.tabela_lote.iloc[0:0]
                 st.session_state.lote_salvo_info = None
                 if "cliente_input" in st.session_state:
@@ -658,7 +658,7 @@ with col_direita:
         with c_link:
             st.page_link(
                 "pages/visualizar_lotes.py",
-                label="📑 Ir para Gestão de Lotes",
+                label="Ir para Gestão de Lotes",
                 icon="📑",
                 use_container_width=True,
             )
@@ -700,7 +700,7 @@ with col_direita:
                     label_g = f"Item {idx}: {qtd_p}x {nome_p} ({locais_p})"
                     opcoes_remocao[label_g] = id_g
 
-                with st.popover("🗑️ Remover Peça", use_container_width=True):
+                with st.popover("Remover Peça", use_container_width=True):
                     st.markdown("**Selecione a peça para remover:**")
                     peca_para_remover = st.selectbox(
                         "Peça para remover:",
@@ -713,11 +713,11 @@ with col_direita:
                             st.session_state.tabela_lote["ID_Grupo"] != id_remover
                         ].reset_index(drop=True)
                         st.session_state.lote_salvo_info = None
-                        st.toast("Peça removida!", icon="🗑️")
+                        st.toast("Peça removida!")
                         st.rerun()
 
             with col_btn_limp:
-                with st.popover("⚠️ Limpar Tudo", use_container_width=True):
+                with st.popover("Limpar Tudo", use_container_width=True):
                     st.warning("Deseja realmente remover todos os itens adicionados ao lote?")
                     if st.button("Confirmar Limpeza Total", type="primary", key="btn_conf_limpar_tudo"):
                         st.session_state.tabela_lote = st.session_state.tabela_lote.iloc[0:0]
@@ -739,15 +739,15 @@ with col_direita:
         # Salvar lote no banco
         lote_ja_salvo = st.session_state.get("lote_salvo_info") is not None
         if lote_ja_salvo:
-            st.info("ℹ️ Lote já salvo no banco. Clique em '➕ Iniciar Novo Lote' para cadastrar outro pedido.")
+            st.info("Lote já salvo no banco. Clique em 'Iniciar Novo Lote' para cadastrar outro pedido.")
         else:
             if st.button(
-                "💾 Salvar Lote Completo no Banco de Dados",
+                "Salvar Lote de Produção",
                 type="primary",
                 use_container_width=True,
             ):
                 if not cliente or not cliente.strip():
-                    st.error("⚠️ Digite o Nome do Cliente no topo da página antes de salvar.")
+                    st.error("Digite o Nome do Cliente no topo da página antes de salvar.")
                 else:
                     try:
                         df = st.session_state.tabela_lote
@@ -818,7 +818,7 @@ with col_direita:
                             "data_entrega": data_entrega_formatada,
                         }
 
-                        st.toast(f"✅ Lote #{lote_salvo.id} salvo com sucesso!", icon="🎉")
+                        st.toast(f"Lote #{lote_salvo.id} salvo com sucesso!")
                         st.rerun()
 
                     except Exception as e:

@@ -52,19 +52,19 @@ st.set_page_config(page_title="Gestão do Catálogo", page_icon="🏷️", layou
 from utils.auth import verificar_autenticacao
 verificar_autenticacao()
 
-st.title("🏷️ Gestão do Catálogo")
+st.title("Gestão do Catálogo")
 st.caption(
     "Gerencie o catálogo de peças confeccionadas e o acervo completo de bordados, matrizes e imagens."
 )
 
-tab_pecas, tab_bordados = st.tabs(["👕 Catálogo de Peças", "🪡 Catálogo de Bordados"])
+tab_pecas, tab_bordados = st.tabs(["Modelos de Peças", "Acervo de Bordados"])
 
 
 # =====================================================================
 # ABA 1: CATÁLOGO DE PEÇAS
 # =====================================================================
 with tab_pecas:
-    with st.expander("➕ Cadastrar Nova Peça no Catálogo", expanded=False):
+    with st.expander("Cadastrar Novo Modelo de Peça", expanded=False):
         with st.form("form_novo_template", clear_on_submit=True):
             col_nome, col_locais = st.columns([1, 2])
 
@@ -80,13 +80,13 @@ with tab_pecas:
                 )
 
             st.markdown(" ")
-            botao_salvar = st.form_submit_button("💾 Salvar Peça no Catálogo", type="primary")
+            botao_salvar = st.form_submit_button("Salvar Modelo", type="primary")
 
             if botao_salvar:
                 if not nome_peca.strip():
-                    st.error("⚠️ O nome da peça é obrigatório.")
+                    st.error("O nome da peça é obrigatório.")
                 elif not locais_input.strip():
-                    st.error("⚠️ Digite pelo menos um local de bordado.")
+                    st.error("Digite pelo menos um local de bordado.")
                 else:
                     lista_locais = [
                         local.strip() for local in locais_input.split(",") if local.strip()
@@ -95,13 +95,13 @@ with tab_pecas:
                     try:
                         CatalogoRepository.salvar_template_peca(nome_peca.strip(), lista_locais)
                         st.success(
-                            f"🎉 Peça '{nome_peca}' cadastrada com sucesso com {len(lista_locais)} local(is)!"
+                            f"Peça '{nome_peca}' cadastrada com sucesso com {len(lista_locais)} local(is)!"
                         )
                         st.rerun()
                     except Exception as e:
                         st.error(f"Erro ao salvar no banco: {e}")
 
-    st.subheader("📚 Modelos de Peças Cadastrados")
+    st.subheader("Modelos Cadastrados")
 
     try:
         templates = CatalogoRepository.listar_templates()
@@ -143,15 +143,15 @@ with tab_pecas:
                 st.caption(f"**Total de modelos cadastrados:** {len(templates)}")
 
             with c_del:
-                with st.popover("🗑️ Excluir Peça do Catálogo"):
-                    st.markdown("**Remover peça cadastrada**")
+                with st.popover("Excluir Modelo"):
+                    st.markdown("**Remover modelo cadastrado**")
                     opcoes_pecas = {f"{t.nome} (ID: {t.id})": t.id for t in templates}
                     peca_selecionada = st.selectbox(
-                        "Selecione a peça para remover",
+                        "Selecione o modelo para remover",
                         options=list(opcoes_pecas.keys()),
                         key="sel_peca_del",
                     )
-                    if st.button("Confirmar Exclusão da Peça", type="primary", key="btn_del_peca"):
+                    if st.button("Confirmar Exclusão", type="primary", key="btn_del_peca"):
                         id_del = opcoes_pecas[peca_selecionada]
                         if CatalogoRepository.deletar_template_peca(id_del):
                             st.success("Peça removida com sucesso!")
@@ -170,11 +170,11 @@ with tab_bordados:
     # ---------------------------------------------------------------------
     # 1. FERRAMENTA DE SINCRONIZAÇÃO EM MASSA DE PASTAS
     # ---------------------------------------------------------------------
-    with st.expander("📁 Sincronizar Pasta do Acervo (Logos, Brasões e Matrizes)", expanded=False):
+    with st.expander("Sincronizar Pasta do Acervo (Logos, Brasões e Matrizes)", expanded=False):
         st.markdown(
             "Esta ferramenta analisa sua pasta local de matrizes organizada por assuntos/instituições "
             "(ex: `matrizes/logos_e_brasoes/Faculdades/Unicesumar/Medicina.dst`), lê os arquivos com o **pyembroidery**, "
-            "extrai **pontos, dimensões (mm), trocas de cor e códigos de linha** e sincroniza direto com o banco de dados!"
+            "extrai **pontos, dimensões (mm), trocas de cor e códigos de linha** e sincroniza direto com o banco de dados."
         )
         c_sync1, c_sync2 = st.columns([3, 1])
         with c_sync1:
@@ -187,7 +187,7 @@ with tab_bordados:
             )
         with c_sync2:
             st.markdown("<div style='height: 28px'></div>", unsafe_allow_html=True)
-            btn_sync_pasta = st.button("🔄 Sincronizar Agora", type="primary", use_container_width=True, key="btn_sync_acervo")
+            btn_sync_pasta = st.button("Sincronizar Acervo", type="primary", use_container_width=True, key="btn_sync_acervo")
 
         if btn_sync_pasta:
             with st.spinner("Processando arquivos de bordado e extraindo dados com pyembroidery..."):
@@ -197,7 +197,7 @@ with tab_bordados:
                         st.error(f"A pasta informada '{caminho_dir}' não existe.")
                     else:
                         indexar_arquivos(p_obj)
-                        st.success("✅ Acervo sincronizado com sucesso!")
+                        st.success("Acervo sincronizado com sucesso!")
                         st.rerun()
                 except Exception as err:
                     st.error(f"Erro na sincronização: {err}")
@@ -205,11 +205,11 @@ with tab_bordados:
     # ---------------------------------------------------------------------
     # 2. FORMULÁRIO DE CADASTRO MANUAL / UPLOAD DE MATRIZ
     # ---------------------------------------------------------------------
-    with st.expander("➕ Cadastrar Novo Bordado / Matriz Manualmente", expanded=False):
+    with st.expander("Cadastrar Novo Bordado Manualmente", expanded=False):
         st.caption("Você pode subir um arquivo de bordado (.dst, .pes, etc.) para extrair pontos, dimensões e cores automaticamente:")
         
         up_matriz_auto = st.file_uploader(
-            "🧵 Arquivo da Matriz (.dst, .pes, .exp, .jef) [Opcional para Auto-preenchimento]",
+            "Arquivo da Matriz (.dst, .pes, .exp, .jef) [Opcional para Leitura]",
             type=["dst", "pes", "exp", "jef", "vp3"],
             key="up_matriz_auto",
             help="Ao selecionar o arquivo, os pontos, dimensões e paradas de agulha são lidos na hora pelo pyembroidery"
@@ -221,7 +221,7 @@ with tab_bordados:
                 dados_auto = extrair_dados_matriz(up_matriz_auto, up_matriz_auto.name) or {}
                 if dados_auto:
                     st.info(
-                        f"📊 **Dados extraídos do arquivo:** `{dados_auto.get('pontos', 0):,}` pontos | "
+                        f"**Dados extraídos do arquivo:** `{dados_auto.get('pontos', 0):,}` pontos | "
                         f"Dimensões: `{dados_auto.get('largura_mm', 0)} x {dados_auto.get('altura_mm', 0)} mm` | "
                         f"Trocas de Cor: `{dados_auto.get('trocas_cor', 0)}` | Linhas: `{dados_auto.get('linhas_usadas')}`"
                     )
@@ -291,7 +291,6 @@ with tab_bordados:
                     help="Indica se a matriz computadorizada já está digitalizada e pronta",
                 )
 
-            # Sugestão de cores extraídas (apenas códigos)
             cores_auto_str = dados_auto.get("linhas_usadas", "")
             linhas_usadas_input = st.text_input(
                 "Códigos das Cores da Linha (separados por vírgula)",
@@ -303,14 +302,14 @@ with tab_bordados:
             col_img_d, col_img_f = st.columns(2)
             with col_img_d:
                 upload_digital = st.file_uploader(
-                    "🖼️ Imagem Digital (Mockup / Arte)",
+                    "Imagem Digital (Mockup / Arte)",
                     type=["png", "jpg", "jpeg", "webp"],
                     help="Opcional. Arte digital ou prévia do bordado",
                     key="up_digital",
                 )
             with col_img_f:
                 upload_foto = st.file_uploader(
-                    "📸 Foto do Bordado Real",
+                    "Foto do Bordado Real",
                     type=["png", "jpg", "jpeg", "webp"],
                     help="Opcional. Fotografia real da peça já bordada",
                     key="up_foto",
@@ -318,16 +317,16 @@ with tab_bordados:
 
             st.markdown(" ")
             btn_salvar_bordado = st.form_submit_button(
-                "💾 Salvar Bordado no Catálogo", type="primary"
+                "Salvar Bordado", type="primary"
             )
 
             if btn_salvar_bordado:
                 if not nome_bordado.strip():
-                    st.error("⚠️ O Nome do bordado é obrigatório.")
+                    st.error("O Nome do bordado é obrigatório.")
                 elif not tipo_bordado or not str(tipo_bordado).strip():
-                    st.error("⚠️ O Tipo do bordado é obrigatório.")
+                    st.error("O Tipo do bordado é obrigatório.")
                 elif pontos <= 0:
-                    st.error("⚠️ A contagem de pontos deve ser maior que zero.")
+                    st.error("A contagem de pontos deve ser maior que zero.")
                 else:
                     try:
                         caminho_digital = (
@@ -366,7 +365,7 @@ with tab_bordados:
                             foto_bordado=caminho_foto,
                         )
                         CatalogoRepository.salvar_template_bordado(novo_bordado)
-                        st.success(f"🎉 Bordado '{nome_bordado}' cadastrado com sucesso no catálogo!")
+                        st.success(f"Bordado '{nome_bordado}' cadastrado com sucesso no catálogo!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Erro ao salvar bordado no banco: {e}")
@@ -374,7 +373,7 @@ with tab_bordados:
     # =====================================================================
     # 3. VISUALIZAÇÃO DO CATÁLOGO DE BORDADOS
     # =====================================================================
-    st.subheader("🗂️ Acervo de Matrizes e Bordados")
+    st.subheader("Acervo de Matrizes e Bordados")
 
     try:
         bordados = CatalogoRepository.listar_templates_bordado()
@@ -392,7 +391,6 @@ with tab_bordados:
                 1 for b in bordados if b.imagem_digital or b.foto_bordado
             )
             media_pontos = sum(b.pontos for b in bordados) / total_itens if total_itens else 0
-            media_preco = sum(b.preco for b in bordados) / total_itens if total_itens else 0
 
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
             kpi1.metric("Total no Acervo", f"{total_itens} matrizes")
@@ -406,7 +404,7 @@ with tab_bordados:
             f_col1, f_col2, f_col3, f_col4, f_col5 = st.columns([2.0, 1.2, 1.2, 1.1, 1.1])
             with f_col1:
                 busca_texto = st.text_input(
-                    "🔍 Buscar bordado",
+                    "Buscar bordado",
                     placeholder="Filtrar por nome, código, instituição ou cores...",
                     key="busca_bordado",
                 )
@@ -434,7 +432,7 @@ with tab_bordados:
             with f_col5:
                 modo_exibicao = st.selectbox(
                     "Visualização",
-                    options=["🗂️ Cards Colapsáveis", "📋 Tabela Geral"],
+                    options=["Cards Detalhados", "Tabela Técnica"],
                     key="modo_exibicao_bordado",
                 )
 
@@ -470,24 +468,17 @@ with tab_bordados:
             if not bordados_filtrados:
                 st.warning("Nenhum bordado encontrado com os filtros selecionados.")
             else:
-                # MODO 1: CARDS COLAPSÁVEIS (Estilo Lotes)
-                if modo_exibicao == "🗂️ Cards Colapsáveis":
+                # MODO 1: CARDS DETALHADOS
+                if modo_exibicao == "Cards Detalhados":
                     st.markdown(
                         """
                         <style>
-                        /* Botões compactos e alinhados para os cards de bordado */
                         div[data-testid="stColumn"] div[data-testid="stPopover"] > button {
-                            padding: 0.15rem 0.35rem !important;
-                            font-size: 0.85rem !important;
-                            min-height: 42px !important;
-                            height: 42px !important;
-                            display: flex !important;
-                            align-items: center !important;
-                            justify-content: center !important;
-                            border-radius: 8px !important;
-                        }
-                        div[data-testid="stExpander"] {
-                            border-radius: 8px !important;
+                            padding: 0.2rem 0.4rem !important;
+                            font-size: 0.82rem !important;
+                            min-height: 38px !important;
+                            height: 38px !important;
+                            border-radius: 6px !important;
                         }
                         </style>
                         """,
@@ -495,7 +486,6 @@ with tab_bordados:
                     )
                     st.caption(f"Mostrando **{len(bordados_filtrados)}** de **{len(bordados)}** matrizes do acervo:")
                     for b in bordados_filtrados:
-                        # 1. Calcula quantidade de cores da matriz
                         qtd_cores = 1
                         if b.cores_detalhes:
                             try:
@@ -507,12 +497,11 @@ with tab_bordados:
                         elif b.linhas_usadas:
                             qtd_cores = len([c for c in b.linhas_usadas.split(",") if c.strip()])
 
-                        # Título do Card Colapsado: estritamente Nome | Quantidade de Cores | Pontos
                         texto_cores = f"{qtd_cores} cor" if qtd_cores == 1 else f"{qtd_cores} cores"
                         pontos_formatado = f"{b.pontos:,}".replace(",", ".")
-                        titulo_card = f"🪡 **{b.nome}** — 🎨 **{texto_cores}** | 🧵 **{pontos_formatado} pts**"
+                        titulo_card = f"**{b.nome}** — {texto_cores} | {pontos_formatado} pts"
 
-                        col_card, col_edit, col_del = st.columns([13, 1, 1], vertical_alignment="top")
+                        col_card, col_edit, col_del = st.columns([12, 1.5, 1.5], vertical_alignment="top")
 
                         with col_card:
                             with st.expander(titulo_card, expanded=False):
@@ -520,36 +509,35 @@ with tab_bordados:
                                 with c_det:
                                     hierarquia = [x for x in [b.categoria, b.subcategoria] if x]
                                     if hierarquia:
-                                        st.markdown(f"🏷️ **Grupo:** `{' > '.join(hierarquia)}`")
+                                        st.markdown(f"**Grupo:** `{' > '.join(hierarquia)}`")
                                     st.markdown(f"**Código:** `{b.codigo_identificacao or 'N/A'}` | **Tipo:** `{b.tipo}`")
                                     if b.largura_mm and b.altura_mm:
-                                        st.markdown(f"📐 **Dimensões:** `{b.largura_mm:.1f} x {b.altura_mm:.1f} mm`")
-                                    status_mat = "✅ Matriz Pronta" if b.matriz_pronta else "⏳ Matriz Pendente"
+                                        st.markdown(f"**Dimensões:** `{b.largura_mm:.1f} x {b.altura_mm:.1f} mm`")
+                                    status_mat = "Matriz Pronta" if b.matriz_pronta else "Matriz Pendente"
                                     st.markdown(f"**Status:** {status_mat}")
 
-                                    # Cores estilo IDE com quadradinho de cor ao lado do código
                                     palette_html = renderizar_chips_cores_html(b.cores_detalhes, b.linhas_usadas)
                                     if palette_html:
                                         st.markdown("**Cores da Matriz:**", unsafe_allow_html=True)
                                         st.markdown(palette_html, unsafe_allow_html=True)
                                     elif b.linhas_usadas:
-                                        st.markdown(f"🧵 **Cores:** `{b.linhas_usadas}`")
+                                        st.markdown(f"**Cores:** `{b.linhas_usadas}`")
 
                                 with c_img1:
-                                    st.markdown("**🖼️ Arte Digital**")
+                                    st.markdown("**Arte Digital**")
                                     if b.imagem_digital and os.path.exists(b.imagem_digital):
-                                        st.image(b.imagem_digital, use_container_width=True)
+                                        st.image(b.imagem_digital, width="stretch")
                                     else:
                                         st.caption("Sem imagem digital")
 
                                 with c_img2:
-                                    st.markdown("**📸 Foto Real**")
+                                    st.markdown("**Foto Real**")
                                     if b.foto_bordado and os.path.exists(b.foto_bordado):
-                                        st.image(b.foto_bordado, use_container_width=True)
+                                        st.image(b.foto_bordado, width="stretch")
                                     else:
                                         st.caption("Sem foto real")
 
-                                    with st.popover("📷 Fotos", key=f"pop_fot_{b.id}"):
+                                    with st.popover("Fotos", key=f"pop_fot_{b.id}"):
                                         st.markdown(f"**Atualizar Fotos:** {b.nome}")
                                         nova_dig = st.file_uploader("Arte Digital", type=["png", "jpg", "jpeg", "webp"], key=f"alt_dig_{b.id}")
                                         nova_foto = st.file_uploader("Foto Real", type=["png", "jpg", "jpeg", "webp"], key=f"alt_foto_{b.id}")
@@ -562,7 +550,7 @@ with tab_bordados:
                                                 st.rerun()
 
                         with col_edit:
-                            with st.popover("✏️", help=f"Editar {b.nome}", use_container_width=True):
+                            with st.popover("Editar", help=f"Editar {b.nome}", use_container_width=True):
                                 st.markdown(f"**Editar Matriz #{b.id}**")
                                 ed_nome = st.text_input("Nome *", value=b.nome, key=f"ed_nom_{b.id}")
                                 ed_cat = st.text_input("Categoria", value=b.categoria or "", key=f"ed_cat_{b.id}")
@@ -585,7 +573,7 @@ with tab_bordados:
                                 ed_mat = st.selectbox("Matriz Pronta?", options=["Sim", "Não"], index=0 if b.matriz_pronta else 1, key=f"ed_mat_{b.id}")
                                 ed_linhas = st.text_input("Códigos das Cores", value=b.linhas_usadas or "", key=f"ed_lin_{b.id}")
 
-                                if st.button("💾 Salvar", key=f"btn_salv_ed_{b.id}", type="primary", use_container_width=True):
+                                if st.button("Salvar Alterações", key=f"btn_salv_ed_{b.id}", type="primary", use_container_width=True):
                                     if not ed_nome.strip():
                                         st.error("Nome é obrigatório.")
                                     else:
@@ -602,26 +590,26 @@ with tab_bordados:
                                             linhas_usadas=ed_linhas.strip() if ed_linhas.strip() else None,
                                             codigo_identificacao=ed_cod.strip() if ed_cod.strip() else None,
                                         )
-                                        st.success("Atualizado!")
+                                        st.success("Atualizado com sucesso!")
                                         st.rerun()
 
                         with col_del:
-                            with st.popover("🗑️", help=f"Excluir {b.nome}", use_container_width=True):
+                            with st.popover("Excluir", help=f"Excluir {b.nome}", use_container_width=True):
                                 st.markdown(f"Excluir **{b.nome}**?")
                                 st.caption("Esta ação não poderá ser desfeita.")
-                                if st.button("Sim, Excluir", key=f"btn_card_del_{b.id}", type="primary", use_container_width=True):
+                                if st.button("Confirmar Exclusão", key=f"btn_card_del_{b.id}", type="primary", use_container_width=True):
                                     if CatalogoRepository.deletar_template_bordado(b.id):
                                         st.success("Bordado removido!")
                                         st.rerun()
                                     else:
                                         st.error("Não foi possível excluir o bordado.")
 
-                # MODO 2: TABELA GERAL
+                # MODO 2: TABELA TÉCNICA
                 else:
                     dados_bordados = []
                     for b in bordados_filtrados:
-                        tem_digital = "🖼️ Sim" if b.imagem_digital and os.path.exists(b.imagem_digital) else "-"
-                        tem_foto = "📸 Sim" if b.foto_bordado and os.path.exists(b.foto_bordado) else "-"
+                        tem_digital = "Sim" if b.imagem_digital and os.path.exists(b.imagem_digital) else "-"
+                        tem_foto = "Sim" if b.foto_bordado and os.path.exists(b.foto_bordado) else "-"
                         dim_str = f"{b.largura_mm:.1f} x {b.altura_mm:.1f} mm" if (b.largura_mm and b.altura_mm) else "-"
 
                         dados_bordados.append(
@@ -668,7 +656,7 @@ with tab_bordados:
                         st.caption(f"Mostrando **{len(bordados_filtrados)}** de **{len(bordados)}** matrizes cadastradas.")
 
                     with c_acao:
-                        with st.popover("🗑️ Excluir Bordado do Acervo"):
+                        with st.popover("Excluir Bordado"):
                             st.markdown("**Remover bordado**")
                             opcoes_b = {
                                 f"{b.nome} ({b.codigo_identificacao or f'ID: {b.id}'})": b.id

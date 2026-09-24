@@ -26,7 +26,7 @@ Este documento define o contexto mestre e os guardrails imediatos para o desenvo
 1. **Zero SQL Raw nas Páginas:** Nenhuma página em [`pages/`](file:///c:/Users/Xauxin/Documents/PROG/svvdst/pages) deve executar comandos SQL diretamente. Todo acesso a dados deve ocorrer através dos métodos estáticos de [`CatalogoRepository`](file:///c:/Users/Xauxin/Documents/PROG/svvdst/core/repository.py) ou [`LoteRepository`](file:///c:/Users/Xauxin/Documents/PROG/svvdst/core/repository.py).
 2. **Barreira de Autenticação:** Toda subpágina em `pages/` deve invocar `verificar_autenticacao()` logo no início de sua execução.
 3. **Caminhos de Arquivo Relativos e Normalizados:** Sempre utilize caminhos com barras normais (`/`) ao armazenar referências a fotos e matrizes no banco de dados.
-4. **Ergonomia Streamlit:** Use `use_container_width=True` em botões/tabelas e assegure que todos os widgets possuam chaves (`key=...`) únicas.
+4. **Ergonomia Streamlit:** Use `use_container_width=True` em botões e `width="stretch"` em tabelas/imagens, assegurando que todos os widgets possuam chaves (`key=...`) únicas.
 5. **Ciclo de Vida do Harness:** O código e a documentação do Harness em `.agents/` e `.harness/` evoluem juntos no mesmo commit/PR.
 
 ---

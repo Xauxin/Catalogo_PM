@@ -9,24 +9,24 @@ from core.repository import CatalogoRepository, LoteRepository
 
 # 1. Configuração da Página
 st.set_page_config(
-    page_title="[TITULO_DA_PAGINA]",
-    page_icon="[ICONE]",
+    page_title="<TituloDaPagina>",
+    page_icon="<Icone>",
     layout="wide"
 )
 
 # 2. Barreira de Autenticação Obrigatória
 verificar_autenticacao()
 
-# 3. Cabeçalho Principal
-st.title("[ICONE] [TITULO_DA_PAGINA]")
-st.caption("[SUBTITULO_OU_DESCRICAO_DA_PAGINA]")
+# 3. Cabeçalho Principal (sem emojis decorativos)
+st.title("<TituloDaPagina>")
+st.caption("<SubtituloOuDescricaoDaPagina>")
 
 # 4. Estado da Sessão (se necessário)
-if "[CHAVE_ESTADO]" not in st.session_state:
-    st.session_state["[CHAVE_ESTADO]"] = None
+if "<chave_estado>" not in st.session_state:
+    st.session_state["<chave_estado>"] = None
 
 # 5. Estrutura de Abas / Seções
-tab_listagem, tab_cadastro = st.tabs(["📋 Listagem", "➕ Novo Registro"])
+tab_listagem, tab_cadastro = st.tabs(["Listagem", "Novo Registro"])
 
 with tab_listagem:
     st.subheader("Registros Cadastrados")
@@ -40,7 +40,7 @@ with tab_listagem:
                     col1, col2 = st.columns([3, 1])
                     col1.write(f"**{item.nome}**")
                     with col2:
-                        with st.popover("⚙️ Ações"):
+                        with st.popover("Ações"):
                             st.write("Editar ou remover:")
                             if st.button("Excluir", key=f"btn_del_{item.id}", type="secondary"):
                                 CatalogoRepository.<metodo_deletar>(item.id)
@@ -54,7 +54,7 @@ with tab_cadastro:
         st.subheader("Preencha as informações:")
         campo_nome = st.text_input("Nome", placeholder="Ex: Modelo A")
         
-        btn_salvar = st.form_submit_button("💾 Salvar", type="primary", use_container_width=True)
+        btn_salvar = st.form_submit_button("Salvar", type="primary", use_container_width=True)
         if btn_salvar:
             if not campo_nome.strip():
                 st.error("O campo Nome é obrigatório.")

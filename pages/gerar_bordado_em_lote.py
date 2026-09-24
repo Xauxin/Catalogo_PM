@@ -21,7 +21,6 @@ def limpar_lista_colunas(colunas, valores_a_remover=[]):
 def renderizar_input_dinamico(coluna_selecionada, chave_prefixo):
     config = config_colunas.get(coluna_selecionada)
     type_config = config["type_config"]  # Acessa o dicionário interno do tipo de coluna
-    print(type_config)
     if type_config["type"] == "selectbox":
         return st.selectbox(
             "Valor",
@@ -50,11 +49,11 @@ if "lote_processado" not in st.session_state:
 if "df_lote" not in st.session_state:
     st.session_state.df_lote = None
 
-st.markdown("## 📦 Gerador de Bordados em Lote")
+st.title("Gerador de Bordados em Lote")
 
 # --- PASSO 1: ENTRADA DOS NOMES ---
 if not st.session_state.lote_processado:
-    st.markdown("### 1. Cole a lista de nomes (um por linha):")
+    st.markdown("### Cole a lista de nomes (um por linha):")
     texto_lotes = st.text_area(
         "Lista de Nomes",
         placeholder="João Silva\nMaria Santos\nPedro Oliveira",
@@ -116,7 +115,7 @@ else:
         "Select": st.column_config.CheckboxColumn("Select", width=50),
     }
 
-    st.markdown("### 🛠️ 2. Ajuste as configurações na tabela abaixo:")
+    st.markdown("### Ajuste as configurações na tabela:")
     collabel1, collabel2 = st.columns(2)
     collabel2.markdown("### Editar Todos os Campos", text_alignment="center")
     collabel1.markdown("### Editar Marcados", text_alignment="center")
@@ -165,7 +164,7 @@ else:
             st.session_state.df_lote = df_lote
             st.rerun()
     st.info(
-        "💡 Você pode dar dois cliques nas células para editar, alterar as fontes e locais diretamente!"
+        "Dê dois cliques nas células para editar, alterar as fontes e locais diretamente."
     )
 
     # Configuração das colunas para colocar menus de seleção dentro das células (Drop-downs)
@@ -183,7 +182,7 @@ else:
     # Botões de Ação
     c_voltar, caminho_final_dst, c_gerar = st.columns(3, vertical_alignment="center")
 
-    if c_voltar.button("⬅️ Cancelar e Voltar", width="stretch"):
+    if c_voltar.button("Cancelar e Voltar", width="stretch"):
         st.session_state.lote_processado = False
         st.session_state.df_lote = None
         st.rerun()
@@ -192,19 +191,18 @@ else:
         "Caminho do Arquivo Final (.DST):", value="./lotes/"
     )
 
-    if c_gerar.button("🚀 Gerar Lote Completo (.DST)", width="stretch", type="primary"):
+    if c_gerar.button("Gerar Lote (.DST)", width="stretch", type="primary"):
         # Atualiza o estado com as alterações que o usuário fez na tela
         st.session_state.df_lote = st.session_state.df_editado
 
         st.markdown("---")
-        st.markdown("### ⏳ Processando Arquivos...")
+        st.markdown("### Processando Arquivos...")
 
         # Criamos um container para mostrar o progresso
         barra_progresso = st.progress(0)
         total_itens = len(st.session_state.df_editado)
 
         for index, (_, linha) in enumerate(st.session_state.df_editado.iterrows()):
-            print(linha)
             motor = MotorBordado(linha["Fonte Nome"])
             if linha["Prefixo"]:
                 nome_completo = f"{linha['Prefixo']} {linha['Nome']}"
@@ -224,4 +222,4 @@ else:
             # Atualiza a barra de progresso proporcionalmente
             barra_progresso.progress((index + 1) / total_itens)
 
-        st.success("🎉 Todos os bordados do lote foram gerados com sucesso!")
+        st.success("Todos os bordados do lote foram gerados com sucesso!")

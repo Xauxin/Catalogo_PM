@@ -1,20 +1,15 @@
-import importlib
-import streamlit as st
-import pandas as pd
 from datetime import datetime
+import pandas as pd
+import streamlit as st
 
-import core.database
-import core.repository
-importlib.reload(core.database)
-importlib.reload(core.repository)
 from core.repository import LoteRepository
-
-st.set_page_config(page_title="Gestão de Lotes", page_icon="📑", layout="wide")
-
 from utils.auth import verificar_autenticacao
+
+st.set_page_config(page_title="Gestão de Lotes", layout="wide")
+
 verificar_autenticacao()
 
-st.title("📑 Acompanhamento e Gestão de Lotes")
+st.title("Gestão e Acompanhamento de Lotes")
 st.caption("Consulte pedidos cadastrados, acompanhe as peças/bordados e gerencie o status de produção.")
 
 # =====================================================================
@@ -27,7 +22,7 @@ except Exception as e:
     lotes = []
 
 # =====================================================================
-# 2. MÉTRICAS GERAIS (DASHBOARD SUPERIOR)
+# 2. MÉTRICAS GERAIS (PRIMEIRA DOBRA)
 # =====================================================================
 total_lotes = len(lotes)
 lotes_pendentes = sum(1 for l in lotes if l.status == "Pendente")
@@ -36,35 +31,38 @@ lotes_concluidos = sum(1 for l in lotes if l.status == "Concluído")
 faturamento_total = sum(l.preco_total for l in lotes)
 
 c_metric1, c_metric2, c_metric3, c_metric4, c_metric5 = st.columns(5)
-c_metric1.metric("📦 Total de Lotes", total_lotes)
-c_metric2.metric("⏳ Pendentes", lotes_pendentes)
-c_metric3.metric("⚙️ Em Produção", lotes_em_producao)
-c_metric4.metric("✅ Concluídos", lotes_concluidos)
-c_metric5.metric("💰 Faturamento Total", f"R$ {faturamento_total:,.2f}")
+c_metric1.metric("Total de Lotes", total_lotes)
+c_metric2.metric("Pendentes", lotes_pendentes)
+c_metric3.metric("Em Produção", lotes_em_producao)
+c_metric4.metric("Concluídos", lotes_concluidos)
+c_metric5.metric("Faturamento Total", f"R$ {faturamento_total:,.2f}")
 
 st.markdown("---")
 
 # =====================================================================
-# 3. FILTROS E BUSCA
+# 3. FILTROS E BUSCA COMPACTOS
 # =====================================================================
 col_busca, col_filtro_status, col_ordem = st.columns([2, 1, 1])
 
 with col_busca:
     termo_busca = st.text_input(
-        "🔍 Buscar por Cliente",
+        "Buscar por Cliente",
         placeholder="Digite o nome do cliente...",
+        key="input_busca_cliente",
     ).strip().lower()
 
 with col_filtro_status:
     filtro_status = st.selectbox(
         "Filtrar por Status",
         options=["Todos", "Pendente", "Em Produção", "Concluído"],
+        key="sel_filtro_status",
     )
 
 with col_ordem:
     ordenacao = st.selectbox(
         "Ordenar por",
         options=["Mais Recentes", "Mais Antigos", "Data de Entrega", "Maior Valor"],
+        key="sel_ordenacao_lotes",
     )
 
 # Aplica filtros
@@ -86,30 +84,22 @@ elif ordenacao == "Maior Valor":
     lotes_filtrados.sort(key=lambda x: x.preco_total, reverse=True)
 
 # =====================================================================
-# 4. LISTAGEM DETALHADA DOS LOTES
+# 4. LISTAGEM DETALHADA DOS LOTES (FLUXO ABAIXO DO SCROLL)
 # =====================================================================
-st.subheader(f"📦 Pedidos Cadastrados ({len(lotes_filtrados)})")
+st.subheader(f"Pedidos Cadastrados ({len(lotes_filtrados)})")
 
 if not lotes_filtrados:
     st.info("Nenhum lote corresponde aos filtros selecionados.")
 else:
-    status_cores = {
-        "Pendente": "🟠",
-        "Em Produção": "🔵",
-        "Concluído": "🟢",
-        "Vazio": "⚪",
-    }
-
     for lote in lotes_filtrados:
-        icone_status = status_cores.get(lote.status, "⚪")
         data_ent_formatada = lote.data_entrada.strftime("%d/%m/%Y") if lote.data_entrada else "-"
         data_entrega_formatada = lote.data_entrega.strftime("%d/%m/%Y") if lote.data_entrega else "-"
         
         titulo_expander = (
-            f"{icone_status} **Lote #{lote.id}** — **{lote.cliente}** | "
-            f"📅 Entrega: {data_entrega_formatada} | "
-            f"💰 R$ {lote.preco_total:,.2f} | "
-            f"Status: **{lote.status}**"
+            f"Lote #{lote.id} — {lote.cliente} | "
+            f"Entrega: {data_entrega_formatada} | "
+            f"R$ {lote.preco_total:,.2f} | "
+            f"Status: {lote.status}"
         )
 
         with st.expander(titulo_expander, expanded=False):
@@ -125,13 +115,13 @@ else:
                 st.write(f"**Total do Lote:** R$ {lote.preco_total:,.2f}")
 
             with c_info3:
-                st.write(f"**Status Geral:** {icone_status} **{lote.status}**")
+                st.write(f"**Status Geral:** **{lote.status}**")
                 qtd_total_pecas = sum(p.quantidade for p in lote.pecas) if lote.pecas else 0
                 st.write(f"**Total de Peças Físicas:** {qtd_total_pecas} un")
 
             with c_acoes:
                 st.write("**Ações:**")
-                with st.popover("🗑️ Excluir", use_container_width=True):
+                with st.popover("Excluir", use_container_width=True):
                     st.warning(f"Deseja realmente excluir o Lote #{lote.id}?")
                     if st.button("Confirmar Exclusão", key=f"del_lote_{lote.id}", type="primary"):
                         if LoteRepository.deletar_lote(lote.id):
@@ -146,7 +136,7 @@ else:
             if not lote.pecas:
                 st.info("Este lote não possui peças vinculadas.")
             else:
-                st.markdown("#### 👕 Peças e Bordados deste Pedido:")
+                st.markdown("#### Peças e Bordados deste Pedido:")
                 
                 for idx_peca, peca in enumerate(lote.pecas, start=1):
                     obs_texto = f" *(Obs: {peca.observacao})*" if peca.observacao else ""
@@ -158,19 +148,14 @@ else:
                     if not peca.bordados:
                         st.caption("Nenhum bordado cadastrado nesta peça.")
                     else:
-                        dados_bordados = []
                         for b in peca.bordados:
-                            dados_bordados.append(b)
-
-                        # Tabela interativa para atualização de status dos bordados
-                        for b in dados_bordados:
                             c_local, c_tipo, c_info, c_cor, c_mtz, c_prc, c_status = st.columns(
                                 [1.5, 1.2, 2.5, 1.2, 1.2, 1.2, 1.5],
                                 vertical_alignment="center",
                             )
 
                             with c_local:
-                                st.write(f"📍 **{b.local or 'Local N/A'}**")
+                                st.write(f"**{b.local or 'Local N/A'}**")
                             with c_tipo:
                                 st.caption(f"Tipo: {b.tipo}")
                             with c_info:

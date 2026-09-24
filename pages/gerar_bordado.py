@@ -98,7 +98,7 @@ tamanho_maximo = colLoc2.text_input(
 
 colFinal1, colFinal2, colFinal3 = st.columns(3, vertical_alignment="center")
 
-if colFinal1.button("Gerar Bordado", use_container_width=True, icon="✔️"):
+if colFinal1.button("Gerar Bordado", use_container_width=True, type="primary"):
     if not nome:
         st.warning("Por favor, digite um nome.")
     else:

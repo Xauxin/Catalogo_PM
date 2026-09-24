@@ -26,7 +26,7 @@ st.set_page_config(page_title="[Título da Página]", page_icon="[Ícone]", layo
 verificar_autenticacao()
 
 # 3. Cabeçalho
-st.title("[Ícone] [Título da Página]")
+st.title("[Título da Página]")
 st.caption("[Breve descrição da finalidade da tela]")
 
 # 4. Conteúdo / Abas
