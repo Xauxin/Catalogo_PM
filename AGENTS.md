@@ -27,7 +27,7 @@ Este documento define o contexto mestre e os guardrails imediatos para o desenvo
 2. **Barreira de Autenticação:** Toda subpágina em `pages/` deve invocar `verificar_autenticacao()` logo no início de sua execução.
 3. **Caminhos de Arquivo Relativos e Normalizados:** Sempre utilize caminhos com barras normais (`/`) ao armazenar referências a fotos e matrizes no banco de dados.
 4. **Ergonomia Streamlit:** Use `width="stretch"` em botões, popovers, link_buttons e tabelas/imagens (substituindo o antigo `use_container_width=True` que foi descontinuado), assegurando que todos os widgets possuam chaves (`key=...`) únicas.
-5. **Ciclo de Vida do Harness:** O código e a documentação do Harness em `.agents/` e `.harness/` evoluem juntos no mesmo commit/PR.
+5. **Ciclo de Vida do Harness & Aprendizado Ativo (Mandatório):** O código e a documentação do Harness em `.agents/` e `.harness/` evoluem juntos no mesmo commit/PR. Sempre que qualquer bug não-óbvio, gargalo de performance, armadilha técnica de biblioteca (Streamlit, SQLModel, Supabase, Cloudflare, Pyembroidery, etc.) ou padrão de infraestrutura for solucionado, a IA **DEVE obrigatoriamente registrar esse aprendizado** na regra temática em `.agents/rules/` ou criar uma nova regra/instrução no mesmo turno de trabalho, garantindo que o sistema aprenda continuamente.
 
 ---
 

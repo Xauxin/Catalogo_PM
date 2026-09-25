@@ -7,9 +7,14 @@ from sqlmodel import Field, Relationship, SQLModel
 # Silencia o aviso inofensivo de recriação de modelos em reloads do Streamlit
 warnings.filterwarnings("ignore", category=SAWarning)
 
-# Mantemos a limpeza preventiva para o Streamlit
-if hasattr(SQLModel, "registry") and hasattr(SQLModel.registry, "_class_registry"):
-    SQLModel.registry._class_registry.clear()
+from sqlmodel.main import default_registry
+
+# Limpeza preventiva obrigatória para hot-reloads do Streamlit no SQLAlchemy 2.0 / SQLModel
+try:
+    default_registry.dispose()
+    SQLModel.metadata.clear()
+except Exception:
+    pass
 
 # ==========================================
 # CAMADA DE CATÁLOGO (TEMPLATES)

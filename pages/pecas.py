@@ -601,7 +601,38 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
                 unsafe_allow_html=True,
             )
 
-            for b in bordados_filtrados:
+            total_itens = len(bordados_filtrados)
+            itens_por_pagina = 16
+            total_paginas = max(1, (total_itens + itens_por_pagina - 1) // itens_por_pagina)
+
+            if "pagina_catalogo_cards" not in st.session_state:
+                st.session_state.pagina_catalogo_cards = 1
+
+            if st.session_state.pagina_catalogo_cards > total_paginas:
+                st.session_state.pagina_catalogo_cards = total_paginas
+            if st.session_state.pagina_catalogo_cards < 1:
+                st.session_state.pagina_catalogo_cards = 1
+
+            idx_inicio = (st.session_state.pagina_catalogo_cards - 1) * itens_por_pagina
+            idx_fim = min(idx_inicio + itens_por_pagina, total_itens)
+            itens_pagina = bordados_filtrados[idx_inicio:idx_fim]
+
+            if total_paginas > 1:
+                c_pag_txt, c_pag_ant, c_pag_prox = st.columns([3, 1, 1], vertical_alignment="center")
+                with c_pag_txt:
+                    st.caption(
+                        f"Mostrando **{idx_inicio + 1}–{idx_fim}** de **{total_itens}** matrizes (Página **{st.session_state.pagina_catalogo_cards}** de **{total_paginas}**)"
+                    )
+                with c_pag_ant:
+                    if st.button("◀ Anterior", disabled=(st.session_state.pagina_catalogo_cards <= 1), width="stretch", key="btn_pag_ant_top"):
+                        st.session_state.pagina_catalogo_cards -= 1
+                        st.rerun()
+                with c_pag_prox:
+                    if st.button("Próxima ▶", disabled=(st.session_state.pagina_catalogo_cards >= total_paginas), width="stretch", key="btn_pag_prox_top"):
+                        st.session_state.pagina_catalogo_cards += 1
+                        st.rerun()
+
+            for b in itens_pagina:
                 qtd_cores = 1
                 if b.cores_detalhes:
                     try:
@@ -785,6 +816,22 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
                     with col_acao:
                         if st.button("Cadastrar-se ➔", key=f"btn_cad_card_{b.id}", width="stretch"):
                             st.switch_page("pages/login.py")
+
+            if total_paginas > 1:
+                st.markdown("---")
+                c_b_txt, c_b_ant, c_b_prox = st.columns([3, 1, 1], vertical_alignment="center")
+                with c_b_txt:
+                    st.caption(
+                        f"Página **{st.session_state.pagina_catalogo_cards}** de **{total_paginas}**"
+                    )
+                with c_b_ant:
+                    if st.button("◀ Anterior", disabled=(st.session_state.pagina_catalogo_cards <= 1), width="stretch", key="btn_pag_ant_bot"):
+                        st.session_state.pagina_catalogo_cards -= 1
+                        st.rerun()
+                with c_b_prox:
+                    if st.button("Próxima ▶", disabled=(st.session_state.pagina_catalogo_cards >= total_paginas), width="stretch", key="btn_pag_prox_bot"):
+                        st.session_state.pagina_catalogo_cards += 1
+                        st.rerun()
 
         # MODO 2: TABELA TÉCNICA (Disponível para Cliente e Admin)
         else:

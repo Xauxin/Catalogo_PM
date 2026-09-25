@@ -71,6 +71,8 @@ svvdst/
 - [04-embroidery-domain.rules.md](rules/04-embroidery-domain.rules.md): Regras de manipulação de matrizes de bordado (.dst), escalas em milímetros, comandos de parada e caminhos relativos com barra normal (`/`).
 - [05-junior-mentor-didactics.rules.md](rules/05-junior-mentor-didactics.rules.md): Postura didática de mentoria para desenvolvedor júnior e regra obrigatória de "Alerta de Novidade" ao sugerir novas libs ou padrões.
 - [06-authentication-rbac.rules.md](rules/06-authentication-rbac.rules.md): Autenticação centralizada com Supabase Auth (Google, Meta, Senha Mestra) e controle de acesso RBAC (admin, operador, cliente) com visibilidade granular de páginas e matrizes.
+- [07-network-proxy-cloudflare.rules.md](rules/07-network-proxy-cloudflare.rules.md): Infraestrutura de rede para proxies reversos, Cloudflare (Flexible SSL, compressão WebSocket desativada) e roteamento de callbacks OAuth com `APP_URL`.
+
 
 ### Pilar 2 — Instruções (`instructions/`)
 - [01-add-streamlit-page.instructions.md](instructions/01-add-streamlit-page.instructions.md): Roteiro sequencial para criar uma nova subpágina no Streamlit com autenticação, layout e inclusão no `pages_sections.toml`.

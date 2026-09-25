@@ -16,7 +16,7 @@ As páginas desenvolvidas em Streamlit devem priorizar **ergonomia operacional**
 3. **Ergonomia Visual e Layout 16:9:**
    * Utilizar `st.set_page_config(layout="wide")` com `padding-top: 3.8rem !important` no `.block-container` para assegurar que os títulos não fiquem cortados sob o cabeçalho fixo nativo do Streamlit (`stHeader`).
    * Telas operacionais e configuradores (como `pages/gerar_lote.py`) devem usar layouts lado a lado (`st.columns`), containers compactos e bordas limpas (`st.container(border=True)`) para permitir visualização de ponta a ponta em monitores 16:9 sem scroll vertical excessivo.
-   * Utilizar `use_container_width=True` em botões e popovers, e `width="stretch"` em tabelas (`st.dataframe`/`st.data_editor`) e imagens (`st.image`) para preenchimento harmonioso do grid.
+   * Utilizar `width="stretch"` em botões, popovers, link_buttons, tabelas (`st.dataframe`/`st.data_editor`) e imagens (`st.image`) para preenchimento harmonioso do grid, evitando a diretiva legada `use_container_width=True`.
 
 4. **Operações Rápidas via Popovers e Expanders:**
    Ações de edição rápida, anexação de fotos ou exclusões devem ser implementadas através de `st.popover` ou caixas retráteis para manter a tela limpa e não forçar navegações fragmentadas.
@@ -32,3 +32,9 @@ As páginas desenvolvidas em Streamlit devem priorizar **ergonomia operacional**
 7. **Tipografia Limpa e Uso Restrito de Emojis:**
    * É proibido o uso excessivo de emojis decorativos em títulos, rótulos de botões, métricas, abas e mensagens de alerta do sistema.
    * Emojis e ícones visuais são reservados **estritamente** para links e itens de navegação (como `pages_sections.toml` e atalhos `st.page_link`), preservando a sobriedade, legibilidade e profissionalismo da aplicação.
+
+8. **Paginação Mandatória para Coleções de Cards e Proteção de WebSocket:**
+   * O servidor Streamlit impõe um limite máximo rígido na fila de saída assíncrona (`WEBSOCKET_MAX_SEND_QUEUE_SIZE = 500`).
+   * **Proibição de Loops Não-Paginados:** É estritamente proibido iterar sobre coleções extensas (> 24 itens) desenhando múltiplos componentes pesados (cards com colunas, expanders, imagens e popovers) de uma só vez. Fazer isso dispara milhares de `ForwardMsg`s instantaneamente, causando estouro de fila (`asyncio.QueueFull`), queda do WebSocket e travamento da página ("running" infinito).
+   * **Paginação com Session State:** Telas com visualização em cards (ex: Catálogo de Bordados) devem paginar os resultados (máximo recomendado de 12 a 24 itens por página), disponibilizando botões `◀ Anterior` e `Próxima ▶` com persistência em `st.session_state`.
+
