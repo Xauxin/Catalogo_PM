@@ -7,7 +7,7 @@ from utils.auth import verificar_autenticacao
 
 st.set_page_config(page_title="Gestão de Lotes", layout="wide")
 
-verificar_autenticacao()
+verificar_autenticacao(role_minima="admin")
 
 st.title("Gestão e Acompanhamento de Lotes")
 st.caption("Consulte pedidos cadastrados, acompanhe as peças/bordados e gerencie o status de produção.")
@@ -121,7 +121,7 @@ else:
 
             with c_acoes:
                 st.write("**Ações:**")
-                with st.popover("Excluir", use_container_width=True):
+                with st.popover("Excluir", width="stretch"):
                     st.warning(f"Deseja realmente excluir o Lote #{lote.id}?")
                     if st.button("Confirmar Exclusão", key=f"del_lote_{lote.id}", type="primary"):
                         if LoteRepository.deletar_lote(lote.id):

@@ -14,7 +14,7 @@ except Exception:
     pass
 
 from utils.auth import verificar_autenticacao
-verificar_autenticacao()
+verificar_autenticacao(role_minima="admin")
 
 # CSS compacto para ajuste 16:9 em tela única (elimina margens excessivas)
 st.markdown(
@@ -455,7 +455,7 @@ with col_esquerda:
     botao_adicionar = st.button(
         "Adicionar Peça ao Lote",
         type="primary",
-        use_container_width=True,
+        width="stretch",
     )
 
     if botao_adicionar:
@@ -590,7 +590,7 @@ with col_direita:
         )
         c_novo, c_link = st.columns([1, 1])
         with c_novo:
-            if st.button("Iniciar Novo Lote", type="primary", use_container_width=True):
+            if st.button("Iniciar Novo Lote", type="primary", width="stretch"):
                 st.session_state.tabela_lote = st.session_state.tabela_lote.iloc[0:0]
                 st.session_state.lote_salvo_info = None
                 if "cliente_input" in st.session_state:
@@ -601,7 +601,7 @@ with col_direita:
                 "pages/visualizar_lotes.py",
                 label="Ir para Gestão de Lotes",
                 icon="📑",
-                use_container_width=True,
+                width="stretch",
             )
 
     if st.session_state.tabela_lote.empty:
@@ -641,7 +641,7 @@ with col_direita:
                     label_g = f"Item {idx}: {qtd_p}x {nome_p} ({locais_p})"
                     opcoes_remocao[label_g] = id_g
 
-                with st.popover("Remover Peça", use_container_width=True):
+                with st.popover("Remover Peça", width="stretch"):
                     st.markdown("**Selecione a peça para remover:**")
                     peca_para_remover = st.selectbox(
                         "Peça para remover:",
@@ -658,7 +658,7 @@ with col_direita:
                         st.rerun()
 
             with col_btn_limp:
-                with st.popover("Limpar Tudo", use_container_width=True):
+                with st.popover("Limpar Tudo", width="stretch"):
                     st.warning("Deseja realmente remover todos os itens adicionados ao lote?")
                     if st.button("Confirmar Limpeza Total", type="primary", key="btn_conf_limpar_tudo"):
                         st.session_state.tabela_lote = st.session_state.tabela_lote.iloc[0:0]
@@ -685,7 +685,7 @@ with col_direita:
             if st.button(
                 "Salvar Lote de Produção",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
             ):
                 if not cliente or not cliente.strip():
                     st.error("Digite o Nome do Cliente no topo da página antes de salvar.")

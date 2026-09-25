@@ -1,9 +1,10 @@
+from datetime import datetime
 import json
 from sqlalchemy.orm import joinedload, selectinload
 from sqlmodel import select
 
 from core.database import get_session
-from core.models import Bordado, LocalBordado, Lote, Peca, TemplateBordado, TemplatePeca
+from core.models import Bordado, LocalBordado, Lote, Peca, PerfilUsuario, TemplateBordado, TemplatePeca
 
 
 # =====================================================================
@@ -75,10 +76,17 @@ class CatalogoRepository:
             return template
 
     @staticmethod
-    def listar_templates_bordado() -> list[TemplateBordado]:
-        """Retorna todos os bordados cadastrados no catálogo ordenados por ID desc."""
+    def listar_templates_bordado(role_usuario: str = "admin") -> list[TemplateBordado]:
+        """
+        Retorna os bordados cadastrados filtrando por permissão de acesso (Role):
+        - admin: vê todos os bordados (todos, restrito, admin)
+        - cliente / visitante: vê apenas bordados com visibilidade 'todos'
+        """
         with get_session() as session:
-            statement = select(TemplateBordado).order_by(TemplateBordado.id.desc())
+            statement = select(TemplateBordado)
+            if role_usuario in ["cliente", "visitante"]:
+                statement = statement.where(TemplateBordado.visibilidade == "todos")
+            statement = statement.order_by(TemplateBordado.id.desc())
             return list(session.exec(statement).all())
 
     @staticmethod
@@ -129,6 +137,7 @@ class CatalogoRepository:
         trocas_cor: int | None = None,
         cores_detalhes: str | None = None,
         arquivo_dst: str | None = None,
+        visibilidade: str | None = None,
     ) -> bool:
         """Atualiza os dados cadastrais de um bordado/matriz existente."""
         with get_session() as session:
@@ -164,6 +173,8 @@ class CatalogoRepository:
                     template.cores_detalhes = cores_detalhes
                 if arquivo_dst is not None:
                     template.arquivo_dst = arquivo_dst
+                if visibilidade is not None:
+                    template.visibilidade = visibilidade
                 session.add(template)
                 session.commit()
                 return True
@@ -387,3 +398,103 @@ class LoteRepository:
                     if len(partes) > 1 and partes[1].strip():
                         esps.add(partes[1].strip())
             return sorted(list(esps))
+
+
+# =====================================================================
+# 3. REPOSITÓRIO DE USUÁRIOS E PERMISSÕES (RBAC)
+# =====================================================================
+class UsuarioRepository:
+    """Gerencia usuários, perfis e controle de acesso baseado em papéis (RBAC)."""
+
+    @staticmethod
+    def obter_por_id(usuario_id: str) -> PerfilUsuario | None:
+        """Busca perfil de usuário pelo ID do Supabase."""
+        with get_session() as session:
+            return session.get(PerfilUsuario, usuario_id)
+
+    @staticmethod
+    def obter_por_email(email: str) -> PerfilUsuario | None:
+        """Busca perfil de usuário pelo e-mail."""
+        with get_session() as session:
+            stmt = select(PerfilUsuario).where(PerfilUsuario.email == email.lower().strip())
+            return session.exec(stmt).first()
+
+    @staticmethod
+    def salvar_ou_atualizar(
+        usuario_id: str,
+        email: str,
+        nome: str | None = None,
+        foto_url: str | None = None,
+        role_padrao: str = "cliente",
+    ) -> PerfilUsuario:
+        """
+        Garante que o usuário autenticado via OAuth tenha registro no banco.
+        Se for o primeiríssimo usuário cadastrado no sistema, atribui 'admin' automaticamente!
+        """
+        with get_session() as session:
+            usuario = session.get(PerfilUsuario, usuario_id)
+            if not usuario:
+                usuario = session.exec(
+                    select(PerfilUsuario).where(PerfilUsuario.email == email.lower().strip())
+                ).first()
+
+            if not usuario:
+                total_existentes = len(session.exec(select(PerfilUsuario.id)).all())
+                role_atribuida = "admin" if total_existentes == 0 else role_padrao
+
+                usuario = PerfilUsuario(
+                    id=usuario_id,
+                    email=email.lower().strip(),
+                    nome=nome,
+                    foto_url=foto_url,
+                    role=role_atribuida,
+                    ativo=True,
+                    ultimo_login=datetime.utcnow(),
+                )
+                session.add(usuario)
+            else:
+                usuario.id = usuario_id
+                if nome and not usuario.nome:
+                    usuario.nome = nome
+                if foto_url:
+                    usuario.foto_url = foto_url
+                usuario.ultimo_login = datetime.utcnow()
+                session.add(usuario)
+
+            session.commit()
+            session.refresh(usuario)
+            return usuario
+
+    @staticmethod
+    def listar_usuarios() -> list[PerfilUsuario]:
+        """Lista todos os perfis de usuários cadastrados ordenados por data de criação desc."""
+        with get_session() as session:
+            stmt = select(PerfilUsuario).order_by(PerfilUsuario.criado_em.desc())
+            return list(session.exec(stmt).all())
+
+    @staticmethod
+    def atualizar_role(usuario_id: str, nova_role: str) -> bool:
+        """Atualiza a role de um usuário ('admin', 'cliente', 'visitante')."""
+        if nova_role not in ["admin", "cliente", "visitante"]:
+            return False
+        with get_session() as session:
+            usuario = session.get(PerfilUsuario, usuario_id)
+            if usuario:
+                usuario.role = nova_role
+                session.add(usuario)
+                session.commit()
+                return True
+            return False
+
+    @staticmethod
+    def atualizar_status_ativo(usuario_id: str, ativo: bool) -> bool:
+        """Ativa ou desativa o acesso de um usuário."""
+        with get_session() as session:
+            usuario = session.get(PerfilUsuario, usuario_id)
+            if usuario:
+                usuario.ativo = ativo
+                session.add(usuario)
+                session.commit()
+                return True
+            return False
+

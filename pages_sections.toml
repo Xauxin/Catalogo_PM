@@ -27,3 +27,8 @@ icon = "📦"
 path = "./pages/pecas.py"
 name = "Catálogo"
 icon = "🏷️"
+
+[[pages]]
+path = "./pages/configuracoes.py"
+name = "Configurações"
+icon = "⚙️"

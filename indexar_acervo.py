@@ -25,7 +25,7 @@ if hasattr(sys.stdout, "reconfigure"):
 from sqlmodel import select
 from core.database import get_session
 from core.models import TemplateBordado
-from utils.embroidery_reader import extrair_dados_matriz
+from utils.embroidery_reader import extrair_dados_matriz, gerar_preview_matriz
 
 # Pastas padrão onde o acervo pode ser colocado
 PASTAS_ACERVO = [
@@ -143,7 +143,7 @@ def indexar_arquivos(pasta_base: Path):
                         nome_matriz = nome_matriz[len(pref) + 1:].strip()
                         break
 
-                # 2. Busca imagem de preview com o mesmo nome na mesma pasta
+                # 2. Busca ou gera imagem de preview (PNG) da matriz
                 imagem_digital = None
                 for ext_img in EXTENSOES_IMAGEM:
                     img_candidata = arq.with_suffix(ext_img)
@@ -151,6 +151,12 @@ def indexar_arquivos(pasta_base: Path):
                         # Armazena caminho relativo para uso web
                         imagem_digital = str(img_candidata.as_posix())
                         break
+
+                # Se não houver imagem pré-existente, gera automaticamente via Wilcom Shell Extension / pyembroidery
+                if not imagem_digital:
+                    png_gerado = gerar_preview_matriz(arq)
+                    if png_gerado:
+                        imagem_digital = png_gerado
 
                 # 3. Extrai dados técnicos com pyembroidery
                 dados = extrair_dados_matriz(arq)
@@ -173,6 +179,7 @@ def indexar_arquivos(pasta_base: Path):
                 )
                 existente = session.exec(stmt).first()
 
+                tag_img = " 🖼️" if imagem_digital else ""
                 if existente:
                     # Atualiza dados técnicos
                     existente.tipo = tipo
@@ -185,12 +192,12 @@ def indexar_arquivos(pasta_base: Path):
                     existente.linhas_usadas = dados["linhas_usadas"]
                     existente.cores_detalhes = dados["cores_detalhes"]
                     existente.arquivo_dst = caminho_rel_salvo
-                    if imagem_digital and not existente.imagem_digital:
+                    if imagem_digital and (not existente.imagem_digital or not Path(existente.imagem_digital).exists()):
                         existente.imagem_digital = imagem_digital
 
                     session.add(existente)
                     atualizados += 1
-                    print(f"🔄 Atualizado: ({tipo}) [{categoria} > {subcategoria or '-'}] {nome_matriz} ({dados['pontos']} pts, {dados['linhas_usadas']})")
+                    print(f"🔄 Atualizado: ({tipo}) [{categoria} > {subcategoria or '-'}] {nome_matriz}{tag_img} ({dados['pontos']} pts, {dados['linhas_usadas']})")
                 else:
                     novo = TemplateBordado(
                         nome=nome_matriz,
@@ -211,7 +218,7 @@ def indexar_arquivos(pasta_base: Path):
                     )
                     session.add(novo)
                     novos += 1
-                    print(f"✨ Cadastrado: ({tipo}) [{categoria} > {subcategoria or '-'}] {nome_matriz} ({dados['pontos']} pts, {dados['linhas_usadas']})")
+                    print(f"✨ Cadastrado: ({tipo}) [{categoria} > {subcategoria or '-'}] {nome_matriz}{tag_img} ({dados['pontos']} pts, {dados['linhas_usadas']})")
 
             except Exception as e:
                 print(f"❌ Erro ao processar {arq}: {type(e).__name__} - {e}")

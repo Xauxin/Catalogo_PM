@@ -1,9 +1,11 @@
 freetype_py==2.5.1
 matplotlib==3.11.2
 pandas==3.0.6
+Pillow>=10.0.0
 psycopg2-binary>=2.9.9
 pyembroidery==1.5.1
 SQLAlchemy==2.0.54
 sqlmodel==0.0.44
 st_pages==1.0.1
 streamlit==1.64.0
+supabase>=2.10.0

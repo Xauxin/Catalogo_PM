@@ -25,7 +25,8 @@ svvdst/
 ├── pages/                                  # Camada de Apresentação (Interface Streamlit)
 │   ├── home.py                             # Visão geral e dashboard inicial
 │   ├── gerar_lote.py                       # Configurador de pedidos/lotes (Layout 16:9 de tela única)
-│   ├── pecas.py                            # Gestão do Catálogo de Peças e Acervo de Bordados/Matrizes
+│   ├── pecas.py                            # Catálogo de Bordados e Gestão de Peças
+│   ├── login.py                            # Tela de autenticação centralizada (OAuth Google/Meta e Senha)
 │   ├── visualizar_lotes.py                 # Painel de acompanhamento e alteração de status de lotes
 │   ├── gerar_bordado.py                    # Geração técnica individual de matriz DST com preview
 │   └── gerar_bordado_em_lote.py            # Geração em lote de matrizes nominais
@@ -68,6 +69,7 @@ svvdst/
 - [03-code-style-ui.rules.md](rules/03-code-style-ui.rules.md): Padrões de interface Streamlit, chaves únicas de widgets, layout 16:9 compacto e barreira de autenticação obrigatória.
 - [04-embroidery-domain.rules.md](rules/04-embroidery-domain.rules.md): Regras de manipulação de matrizes de bordado (.dst), escalas em milímetros, comandos de parada e caminhos relativos com barra normal (`/`).
 - [05-junior-mentor-didactics.rules.md](rules/05-junior-mentor-didactics.rules.md): Postura didática de mentoria para desenvolvedor júnior e regra obrigatória de "Alerta de Novidade" ao sugerir novas libs ou padrões.
+- [06-authentication-rbac.rules.md](rules/06-authentication-rbac.rules.md): Autenticação centralizada com Supabase Auth (Google, Meta, Senha Mestra) e controle de acesso RBAC (admin, operador, cliente) com visibilidade granular de páginas e matrizes.
 
 ### Pilar 2 — Instruções (`instructions/`)
 - [01-add-streamlit-page.instructions.md](instructions/01-add-streamlit-page.instructions.md): Roteiro sequencial para criar uma nova subpágina no Streamlit com autenticação, layout e inclusão no `pages_sections.toml`.

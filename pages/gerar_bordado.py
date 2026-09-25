@@ -10,7 +10,7 @@ from utils.ecosystem_data import load_ecosystem_data
 FONTES_DISPONIVEIS, ESPECIALIDADES_PRONTAS, ESPACAMENTO_LOCAL = load_ecosystem_data()
 
 from utils.auth import verificar_autenticacao
-verificar_autenticacao()
+verificar_autenticacao(role_minima="cliente")
 
 
 def renderizar_preview_bordado(bordado):
@@ -98,7 +98,7 @@ tamanho_maximo = colLoc2.text_input(
 
 colFinal1, colFinal2, colFinal3 = st.columns(3, vertical_alignment="center")
 
-if colFinal1.button("Gerar Bordado", use_container_width=True, type="primary"):
+if colFinal1.button("Gerar Bordado", width="stretch", type="primary"):
     if not nome:
         st.warning("Por favor, digite um nome.")
     else:
@@ -180,7 +180,7 @@ if "bordado_pronto" in st.session_state:
         data=dados_dst,
         file_name=f"{nome_salvar}.dst",
         mime="application/octet-stream",
-        use_container_width=True,
+        width="stretch",
         icon=":material/download:",
         type="secondary",
     )

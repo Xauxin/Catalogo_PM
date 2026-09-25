@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 import warnings
 from sqlalchemy.exc import SAWarning
@@ -62,6 +62,7 @@ class TemplateBordado(SQLModel, table=True):
     matriz_pronta: bool = Field(default=True)
     preco_matriz: Optional[float] = Field(default=0.0)
     codigo_identificacao: Optional[str] = Field(default=None)
+    visibilidade: str = Field(default="todos", index=True)
     imagem_digital: Optional[str] = Field(default=None)
     foto_bordado: Optional[str] = Field(default=None)
 
@@ -149,3 +150,22 @@ class Bordado(SQLModel, table=True):
     local_bordado_id: Optional[int] = Field(
         default=None, foreign_key="localbordado.id", index=True
     )
+
+
+# ==========================================
+# CAMADA DE AUTENTICAÇÃO E PERFIS
+# ==========================================
+
+class PerfilUsuario(SQLModel, table=True):
+    __tablename__ = "perfil_usuario"
+    __table_args__ = {"extend_existing": True}
+
+    id: str = Field(primary_key=True)  # UUID originário do Supabase Auth
+    email: str = Field(index=True, unique=True)
+    nome: Optional[str] = Field(default=None)
+    foto_url: Optional[str] = Field(default=None)
+    role: str = Field(default="cliente", index=True)  # "admin", "operador", "cliente"
+    ativo: bool = Field(default=True, index=True)
+    criado_em: datetime = Field(default_factory=datetime.utcnow)
+    ultimo_login: Optional[datetime] = Field(default=None)
+

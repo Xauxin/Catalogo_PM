@@ -201,3 +201,164 @@ def renderizar_chips_cores_html(
 
     html_parts.append("</div>")
     return "".join(html_parts)
+
+
+def extrair_preview_wilcom(caminho_arquivo: Union[str, Path], tamanho: int = 256) -> Optional[Any]:
+    """
+    Extrai o thumbnail nativo de alta fidelidade gerado pelo Wilcom Shell Extension via Windows Shell API (IShellItemImageFactory).
+    Retorna uma instância de PIL.Image.Image em formato RGBA (fundo transparente) ou None se indisponível.
+    """
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes, Structure, POINTER, byref, c_void_p
+        from PIL import Image
+
+        class GUID(Structure):
+            _fields_ = [
+                ("Data1", wintypes.DWORD),
+                ("Data2", wintypes.WORD),
+                ("Data3", wintypes.WORD),
+                ("Data4", wintypes.BYTE * 8)
+            ]
+            def __init__(self, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8):
+                self.Data1 = l
+                self.Data2 = w1
+                self.Data3 = w2
+                self.Data4 = (wintypes.BYTE * 8)(b1, b2, b3, b4, b5, b6, b7, b8)
+
+        IID_IShellItemImageFactory = GUID(
+            0xbcc18b79, 0xba16, 0x442f, 0x80, 0xc4, 0x8a, 0x59, 0xc3, 0x0c, 0x46, 0x3b
+        )
+
+        class SIZE(Structure):
+            _fields_ = [("cx", wintypes.LONG), ("cy", wintypes.LONG)]
+
+        class BITMAP(Structure):
+            _fields_ = [
+                ("bmType", wintypes.LONG),
+                ("bmWidth", wintypes.LONG),
+                ("bmHeight", wintypes.LONG),
+                ("bmWidthBytes", wintypes.LONG),
+                ("bmPlanes", wintypes.WORD),
+                ("bmBitsPixel", wintypes.WORD),
+                ("bmBits", c_void_p)
+            ]
+
+        class BITMAPINFOHEADER(Structure):
+            _fields_ = [
+                ("biSize", wintypes.DWORD),
+                ("biWidth", wintypes.LONG),
+                ("biHeight", wintypes.LONG),
+                ("biPlanes", wintypes.WORD),
+                ("biBitCount", wintypes.WORD),
+                ("biCompression", wintypes.DWORD),
+                ("biSizeImage", wintypes.DWORD),
+                ("biXPelsPerMeter", wintypes.LONG),
+                ("biYPelsPerMeter", wintypes.LONG),
+                ("biClrUsed", wintypes.DWORD),
+                ("biClrImportant", wintypes.DWORD)
+            ]
+
+        ole32 = ctypes.windll.ole32
+        shell32 = ctypes.windll.shell32
+        gdi32 = ctypes.windll.gdi32
+        user32 = ctypes.windll.user32
+
+        ole32.CoInitialize(None)
+
+        SHCreateItemFromParsingName = shell32.SHCreateItemFromParsingName
+        SHCreateItemFromParsingName.argtypes = [wintypes.LPCWSTR, c_void_p, POINTER(GUID), POINTER(c_void_p)]
+        SHCreateItemFromParsingName.restype = wintypes.HRESULT
+
+        p_factory = c_void_p()
+        caminho_abs = str(Path(caminho_arquivo).resolve())
+        hr = SHCreateItemFromParsingName(caminho_abs, None, byref(IID_IShellItemImageFactory), byref(p_factory))
+        if hr != 0 or not p_factory.value:
+            return None
+
+        vtable = ctypes.cast(p_factory, POINTER(POINTER(c_void_p))).contents
+        GetImage = ctypes.WINFUNCTYPE(
+            wintypes.HRESULT, c_void_p, SIZE, wintypes.DWORD, POINTER(wintypes.HBITMAP)
+        )(vtable[3])
+
+        hbitmap = wintypes.HBITMAP()
+        hr2 = GetImage(p_factory, SIZE(tamanho, tamanho), 0x0, byref(hbitmap))
+        if hr2 != 0 or not hbitmap.value:
+            return None
+
+        bmp = BITMAP()
+        gdi32.GetObjectW(hbitmap, ctypes.sizeof(BITMAP), byref(bmp))
+
+        hdc = user32.GetDC(None)
+        bmi = BITMAPINFOHEADER()
+        bmi.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+        bmi.biWidth = bmp.bmWidth
+        bmi.biHeight = -bmp.bmHeight  # top-down DIB
+        bmi.biPlanes = 1
+        bmi.biBitCount = 32
+        bmi.biCompression = 0  # BI_RGB
+
+        buf_size = bmp.bmWidth * bmp.bmHeight * 4
+        buffer = (ctypes.c_char * buf_size)()
+
+        gdi32.GetDIBits(hdc, hbitmap, 0, bmp.bmHeight, buffer, byref(bmi), 0)
+        user32.ReleaseDC(None, hdc)
+        gdi32.DeleteObject(hbitmap)
+
+        return Image.frombuffer("RGBA", (bmp.bmWidth, bmp.bmHeight), buffer, "raw", "BGRA", 0, 1)
+    except Exception:
+        return None
+
+
+def gerar_preview_matriz(
+    caminho_matriz: Union[str, Path],
+    caminho_saida: Optional[Union[str, Path]] = None,
+    tamanho: int = 256,
+    sobrescrever: bool = False
+) -> Optional[str]:
+    """
+    Gera um arquivo PNG de preview para uma matriz de bordado (.pes, .dst, etc.).
+    1º Tenta via Wilcom Shell Extension (renderização nativa de altíssima fidelidade e fundo transparente).
+    2º Fallback: utiliza o pyembroidery para renderizar os pontos diretamente em PNG.
+
+    Retorna o caminho normalizado (com barras normais '/') do PNG gerado ou None se falhar.
+    """
+    caminho_matriz = Path(caminho_matriz)
+    if not caminho_matriz.exists():
+        return None
+
+    if caminho_saida is None:
+        caminho_saida = caminho_matriz.with_suffix(".png")
+    else:
+        caminho_saida = Path(caminho_saida)
+
+    # Se já existir e não for para sobrescrever, apenas retorna o caminho
+    if caminho_saida.exists() and not sobrescrever and caminho_saida.stat().st_size > 0:
+        return str(caminho_saida.as_posix())
+
+    caminho_saida.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. Tenta extrair via Wilcom Shell Extension
+    img = extrair_preview_wilcom(caminho_matriz, tamanho=tamanho)
+    if img:
+        try:
+            img.save(str(caminho_saida), format="PNG")
+            if caminho_saida.exists() and caminho_saida.stat().st_size > 0:
+                return str(caminho_saida.as_posix())
+        except Exception:
+            pass
+
+    # 2. Fallback: renderização direta dos pontos via pyembroidery
+    try:
+        pattern = pyembroidery.read(str(caminho_matriz))
+        if pattern:
+            pyembroidery.write_png(pattern, str(caminho_saida))
+            if caminho_saida.exists() and caminho_saida.stat().st_size > 0:
+                return str(caminho_saida.as_posix())
+    except Exception:
+        pass
+
+    return None
+

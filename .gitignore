@@ -23,6 +23,8 @@ banco.db
 
 # Arquivos temporários e uploads locais
 uploads/
+*.tmp
+.agents/*.tmp
 lote/
 matrizes/
 *.dst

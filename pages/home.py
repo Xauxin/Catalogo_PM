@@ -5,7 +5,7 @@ import streamlit as st
 from core.repository import CatalogoRepository, LoteRepository
 from utils.auth import verificar_autenticacao
 
-verificar_autenticacao()
+verificar_autenticacao(role_minima="admin")
 
 st.title("Painel de Controle")
 st.caption("Visão geral em tempo real de pedidos, lotes de produção e acervo técnico da confecção.")
@@ -60,7 +60,7 @@ with a1:
             "pages/gerar_lote.py",
             label="Novo Pedido / Lote",
             icon="📦",
-            use_container_width=True,
+            width="stretch",
         )
         st.caption("Configurar pedido multipeças e calcular orçamento.")
 
@@ -70,7 +70,7 @@ with a2:
             "pages/visualizar_lotes.py",
             label="Acompanhar Produção",
             icon="📑",
-            use_container_width=True,
+            width="stretch",
         )
         st.caption("Consultar histórico, detalhes e alterar status.")
 
@@ -80,7 +80,7 @@ with a3:
             "pages/pecas.py",
             label="Catálogo Geral",
             icon="🏷️",
-            use_container_width=True,
+            width="stretch",
         )
         st.caption("Gerenciar modelos de peças e matrizes cadastradas.")
 
@@ -90,7 +90,7 @@ with a4:
             "pages/gerar_bordado_em_lote.py",
             label="Gerar Bordados DST",
             icon="📋",
-            use_container_width=True,
+            width="stretch",
         )
         st.caption("Criar matrizes de nomes em lote com motor DST.")
 
