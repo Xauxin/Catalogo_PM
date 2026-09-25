@@ -33,7 +33,8 @@ svvdst/
 ├── utils/                                  # Utilitários e Serviços Especializados
 │   ├── auth.py                             # Verificação de login e barreira de segurança por página
 │   ├── ecosystem_data.py                   # Loader compartilhado de fontes e matrizes prontas
-│   └── embroidery_reader.py                # Leitor técnico de arquivos DST/PES (pontos, cores, dimensões)
+│   ├── embroidery_reader.py                # Leitor técnico de arquivos DST/PES (pontos, cores, dimensões)
+│   └── storage.py                          # Upload e sincronização de imagens no Supabase Storage CDN
 ├── fontsfiles/                             # Fontes TTF e alfabetos bordados pré-digitalizados
 ├── matrizes/                               # Acervo de arquivos de bordado (.dst, .pes, .exp)
 ├── uploads/                                # Armazenamento persistente de artes digitais e fotos reais

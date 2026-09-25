@@ -79,13 +79,19 @@ class CatalogoRepository:
     def listar_templates_bordado(role_usuario: str = "admin") -> list[TemplateBordado]:
         """
         Retorna os bordados cadastrados filtrando por permissão de acesso (Role):
-        - admin: vê todos os bordados (todos, restrito, admin)
-        - cliente / visitante: vê apenas bordados com visibilidade 'todos'
+        - admin: vê todos os bordados (visibilidade 'todos', 'cliente', 'admin', etc.)
+        - cliente: vê bordados com visibilidade 'todos' e 'cliente' (oculta matrizes privadas de admin)
+        - visitante: vê apenas bordados com visibilidade 'todos' ou 'visitante'
         """
         with get_session() as session:
             statement = select(TemplateBordado)
-            if role_usuario in ["cliente", "visitante"]:
-                statement = statement.where(TemplateBordado.visibilidade == "todos")
+            role_limpa = (role_usuario or "visitante").lower()
+            if role_limpa == "visitante":
+                statement = statement.where(TemplateBordado.visibilidade.in_(["todos", "visitante"]))
+            elif role_limpa == "cliente":
+                statement = statement.where(TemplateBordado.visibilidade.in_(["todos", "visitante", "cliente"]))
+            # admin tem acesso irrestrito a todos os itens
+
             statement = statement.order_by(TemplateBordado.id.desc())
             return list(session.exec(statement).all())
 

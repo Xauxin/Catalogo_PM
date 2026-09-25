@@ -158,6 +158,17 @@ def indexar_arquivos(pasta_base: Path):
                     if png_gerado:
                         imagem_digital = png_gerado
 
+                # 2.1 Envia para o Supabase Storage se for arquivo local
+                if imagem_digital and not imagem_digital.startswith("http"):
+                    from utils.storage import upload_arquivo_imagem
+                    url_supa = upload_arquivo_imagem(
+                        imagem_digital,
+                        prefixo=f"matriz_{tipo}_{nome_matriz}",
+                        nome_original=Path(imagem_digital).name,
+                    )
+                    if url_supa:
+                        imagem_digital = url_supa
+
                 # 3. Extrai dados técnicos com pyembroidery
                 dados = extrair_dados_matriz(arq)
                 if not dados:

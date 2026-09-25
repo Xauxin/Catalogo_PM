@@ -10,6 +10,7 @@ from core.models import TemplateBordado
 from core.repository import CatalogoRepository
 from utils.auth import obter_role_usuario, verificar_autenticacao
 from utils.embroidery_reader import extrair_dados_matriz, renderizar_chips_cores_html
+from utils.storage import upload_arquivo_imagem, migrar_imagens_locais_para_supabase
 from indexar_acervo import localizar_pasta_acervo, indexar_arquivos
 
 st.set_page_config(page_title="Catálogo de Bordados", page_icon="🏷️", layout="wide")
@@ -40,17 +41,10 @@ CORES_PADRAO = [
 
 
 def salvar_arquivo_upload(uploaded_file, prefixo: str) -> str | None:
-    """Salva o arquivo de upload no disco e retorna o caminho relativo formatado."""
+    """Faz o upload para o Supabase Storage (com contingência local) e retorna a URL pública."""
     if not uploaded_file:
         return None
-    ext = Path(uploaded_file.name).suffix.lower()
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    limpo = re.sub(r"[^a-zA-Z0-9_-]", "_", prefixo).strip("_") or "arquivo"
-    nome_arquivo = f"{limpo}_{timestamp}{ext}"
-    destino = UPLOAD_DIR / nome_arquivo
-    with open(destino, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    return str(destino).replace("\\", "/")
+    return upload_arquivo_imagem(uploaded_file, prefixo=prefixo)
 
 
 def renderizar_catalogo_pecas():
@@ -170,9 +164,8 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
         with st.expander("Sincronizar Pasta do Acervo (Logos, Brasões e Matrizes)", expanded=False):
             st.markdown(
                 "Esta ferramenta analisa sua pasta local de matrizes organizada por **Tipo, Categoria e Subcategoria** "
-                "(ex: `matrizes/Brasão/Faculdades/Unicesumar/Medicina.dst` ou `matrizes/Logo/Faculdades/Unicesumar/Medicina.dst`), "
-                "lê os arquivos com o **pyembroidery**, extrai **pontos, dimensões (mm), trocas de cor e códigos de linha** "
-                "e sincroniza direto com o banco de dados."
+                "(ex: `matrizes/Brasão/Faculdades/Unicesumar/Medicina.dst`), lê os arquivos com o **pyembroidery**, "
+                "extrai pontos, dimensões e cores, e cadastra direto no banco de dados."
             )
             c_sync1, c_sync2 = st.columns([3, 1])
             with c_sync1:
@@ -199,6 +192,17 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
                             st.rerun()
                     except Exception as err:
                         st.error(f"Erro na sincronização: {err}")
+
+            st.markdown("---")
+            c_sync_cloud1, c_sync_cloud2 = st.columns([3, 1])
+            with c_sync_cloud1:
+                st.caption("☁️ **Supabase Storage CDN:** Se você tiver imagens locais vinculadas anteriormente, envie-as para a nuvem pública do Supabase com um clique:")
+            with c_sync_cloud2:
+                if st.button("Enviar Imagens ao Supabase", width="stretch", key="btn_sync_cloud_storage"):
+                    with st.spinner("Enviando imagens para o Supabase Storage..."):
+                        res_mig = migrar_imagens_locais_para_supabase()
+                        st.success(f"Migração concluída! {res_mig.get('migrados', 0)} imagem(ns) enviada(s) para o Supabase Storage.")
+                        st.rerun()
 
         with st.expander("Cadastrar Novo Bordado Manualmente", expanded=False):
             st.caption("Você pode subir um arquivo de bordado (.dst, .pes, etc.) para extrair pontos, dimensões e cores automaticamente:")
@@ -305,10 +309,15 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
                     )
                 with col_dim4:
                     visibilidade_opt = st.selectbox(
-                        "Visibilidade",
-                        options=["todos", "restrito", "admin"],
-                        format_func=lambda v: "🌐 Todos" if v == "todos" else ("🔒 Restrito" if v == "restrito" else "👑 Admin"),
-                        help="Define quem pode visualizar esta matriz no catálogo",
+                        "Visibilidade por Papel (Role) *",
+                        options=["todos", "cliente", "admin"],
+                        format_func=lambda v: (
+                            "🌐 Todos (Visitantes & Clientes)" if v in ["todos", "visitante"]
+                            else ("👤 Apenas Clientes & Admin" if v == "cliente"
+                            else "👑 Apenas Administradores (Privado)")
+                        ),
+                        index=0,
+                        help="Define quais perfis de usuário podem ver este bordado no catálogo",
                         key="sel_visibilidade_pecas",
                     )
 
@@ -337,16 +346,16 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
                 col_img_d, col_img_f = st.columns(2)
                 with col_img_d:
                     upload_digital = st.file_uploader(
-                        "Imagem Digital (Mockup / Arte)",
+                        "Imagem Digital (Mockup / Arte) [Upload Direto Supabase]",
                         type=["png", "jpg", "jpeg", "webp"],
-                        help="Opcional. Arte digital ou prévia do bordado",
+                        help="Arte digital enviada automaticamente para o Supabase Storage",
                         key="up_digital",
                     )
                 with col_img_f:
                     upload_foto = st.file_uploader(
-                        "Foto do Bordado Real",
+                        "Foto do Bordado Real [Upload Direto Supabase]",
                         type=["png", "jpg", "jpeg", "webp"],
-                        help="Opcional. Fotografia real da peça já bordada",
+                        help="Fotografia real da peça enviada automaticamente para o Supabase Storage",
                         key="up_foto",
                     )
 
@@ -485,8 +494,19 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
 
             st.markdown(" ")
 
-            # 2. Barra de Filtros e Modo de Visualização
-            f_col1, f_col2, f_col3, f_col4, f_col5 = st.columns([2.0, 1.2, 1.2, 1.1, 1.1])
+            # 2. Barra de Filtros e Modo de Visualização (Admin tem filtro extra de visibilidade por role)
+            if is_admin:
+                f_col1, f_col2, f_col3, f_col4, f_col_vis, f_col5 = st.columns([1.8, 1.1, 1.1, 1.0, 1.2, 1.0])
+                with f_col_vis:
+                    filtro_vis = st.selectbox(
+                        "Visibilidade Role",
+                        options=["Todas", "🌐 Todos (Público)", "👤 Clientes & Admin", "👑 Admin (Privado)"],
+                        key="filtro_visibilidade_admin",
+                    )
+            else:
+                f_col1, f_col2, f_col3, f_col4, f_col5 = st.columns([2.0, 1.2, 1.2, 1.1, 1.1])
+                filtro_vis = "Todas"
+
             with f_col1:
                 busca_texto = st.text_input(
                     "Buscar bordado",
@@ -546,6 +566,14 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
                 bordados_filtrados = [
                     b for b in bordados_filtrados if b.tipo == filtro_tipo
                 ]
+
+            if is_admin and filtro_vis != "Todas":
+                if filtro_vis == "🌐 Todos (Público)":
+                    bordados_filtrados = [b for b in bordados_filtrados if b.visibilidade in ["todos", "visitante"]]
+                elif filtro_vis == "👤 Clientes & Admin":
+                    bordados_filtrados = [b for b in bordados_filtrados if b.visibilidade == "cliente"]
+                elif filtro_vis == "👑 Admin (Privado)":
+                    bordados_filtrados = [b for b in bordados_filtrados if b.visibilidade in ["admin", "restrito"]]
 
             st.caption(f"Mostrando **{len(bordados_filtrados)}** de **{len(bordados)}** matrizes do acervo:")
 
@@ -608,6 +636,23 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
                             status_mat = "Matriz Pronta" if b.matriz_pronta else "Matriz Pendente"
                             st.markdown(f"**Status:** {status_mat}")
 
+                            # Badge de visibilidade por role (informativo para Admin)
+                            if is_admin:
+                                badge_vis = (
+                                    "🌐 Visível para Todos" if b.visibilidade in ["todos", "visitante"]
+                                    else ("👤 Apenas Clientes & Admin" if b.visibilidade == "cliente"
+                                    else "👑 Apenas Administradores (Privado)")
+                                )
+                                cor_vis = (
+                                    "#2a9d8f" if b.visibilidade in ["todos", "visitante"]
+                                    else ("#457b9d" if b.visibilidade == "cliente"
+                                    else "#e63946")
+                                )
+                                st.markdown(
+                                    f"**Visibilidade:** <span style='background:{cor_vis}; color:#fff; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600;'>{badge_vis}</span>",
+                                    unsafe_allow_html=True,
+                                )
+
                             palette_html = renderizar_chips_cores_html(b.cores_detalhes, b.linhas_usadas)
                             if palette_html:
                                 st.markdown("**Cores da Matriz:**", unsafe_allow_html=True)
@@ -617,29 +662,31 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
 
                         with c_img1:
                             st.markdown("**Arte Digital**")
-                            if b.imagem_digital and os.path.exists(b.imagem_digital):
+                            tem_dig = b.imagem_digital and (b.imagem_digital.startswith("http") or os.path.exists(b.imagem_digital))
+                            if tem_dig:
                                 st.image(b.imagem_digital, width="stretch")
                             else:
                                 st.caption("Sem imagem digital")
 
                         with c_img2:
                             st.markdown("**Foto Real**")
-                            if b.foto_bordado and os.path.exists(b.foto_bordado):
+                            tem_fot = b.foto_bordado and (b.foto_bordado.startswith("http") or os.path.exists(b.foto_bordado))
+                            if tem_fot:
                                 st.image(b.foto_bordado, width="stretch")
                             else:
                                 st.caption("Sem foto real")
 
                             if is_admin:
                                 with st.popover("Fotos", key=f"pop_fot_{b.id}", width="stretch"):
-                                    st.markdown(f"**Atualizar Fotos:** [{b.tipo}] {b.nome}")
+                                    st.markdown(f"**Atualizar Fotos (Supabase Storage):** [{b.tipo}] {b.nome}")
                                     nova_dig = st.file_uploader("Arte Digital", type=["png", "jpg", "jpeg", "webp"], key=f"alt_dig_{b.id}")
                                     nova_foto = st.file_uploader("Foto Real", type=["png", "jpg", "jpeg", "webp"], key=f"alt_foto_{b.id}")
-                                    if st.button("Salvar Fotos", key=f"btn_salv_fotos_{b.id}", type="primary", width="stretch"):
+                                    if st.button("Salvar Fotos no Supabase", key=f"btn_salv_fotos_{b.id}", type="primary", width="stretch"):
                                         c_dig = salvar_arquivo_upload(nova_dig, f"digital_{b.codigo_identificacao or b.id}") if nova_dig else None
                                         c_fot = salvar_arquivo_upload(nova_foto, f"foto_{b.codigo_identificacao or b.id}") if nova_foto else None
                                         if c_dig or c_fot:
                                             CatalogoRepository.atualizar_imagens_template_bordado(b.id, imagem_digital=c_dig, foto_bordado=c_fot)
-                                            st.success("Fotos atualizadas!")
+                                            st.success("Fotos enviadas para o Supabase com sucesso!")
                                             st.rerun()
 
                 # Ações de administração
@@ -672,6 +719,22 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
                                 accept_new_options=True,
                                 key=f"ed_tip_{b.id}",
                             )
+
+                            opcoes_vis = ["todos", "cliente", "admin"]
+                            vis_val = b.visibilidade if b.visibilidade in opcoes_vis else "todos"
+                            ed_vis = st.selectbox(
+                                "Visibilidade por Papel (Role) *",
+                                options=opcoes_vis,
+                                index=opcoes_vis.index(vis_val),
+                                format_func=lambda v: (
+                                    "🌐 Todos (Visitantes & Clientes)" if v in ["todos", "visitante"]
+                                    else ("👤 Apenas Clientes & Admin" if v == "cliente"
+                                    else "👑 Apenas Administradores (Privado)")
+                                ),
+                                key=f"ed_vis_{b.id}",
+                                help="Controla quem pode ver esta matriz no catálogo",
+                            )
+
                             ed_cod = st.text_input("Código", value=b.codigo_identificacao or "", key=f"ed_cod_{b.id}")
                             ed_pts = st.number_input("Pontos *", min_value=0, value=int(b.pontos), step=500, key=f"ed_pts_{b.id}")
                             ed_larg = st.number_input("Largura (mm)", min_value=0.0, value=float(b.largura_mm or 0.0), step=1.0, format="%.1f", key=f"ed_larg_{b.id}")
@@ -695,6 +758,7 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
                                         matriz_pronta=(ed_mat == "Sim"),
                                         linhas_usadas=ed_linhas.strip() if ed_linhas.strip() else None,
                                         codigo_identificacao=ed_cod.strip() if ed_cod.strip() else None,
+                                        visibilidade=ed_vis,
                                     )
                                     st.success("Atualizado com sucesso!")
                                     st.rerun()
@@ -726,47 +790,53 @@ def renderizar_acervo_bordados(role_usuario: str, is_admin: bool):
         else:
             dados_bordados = []
             for b in bordados_filtrados:
-                tem_digital = "Sim" if b.imagem_digital and os.path.exists(b.imagem_digital) else "-"
-                tem_foto = "Sim" if b.foto_bordado and os.path.exists(b.foto_bordado) else "-"
+                tem_digital = "Sim" if b.imagem_digital and (b.imagem_digital.startswith("http") or os.path.exists(b.imagem_digital)) else "-"
+                tem_foto = "Sim" if b.foto_bordado and (b.foto_bordado.startswith("http") or os.path.exists(b.foto_bordado)) else "-"
                 dim_str = f"{b.largura_mm:.1f} x {b.altura_mm:.1f} mm" if (b.largura_mm and b.altura_mm) else "-"
 
-                dados_bordados.append(
-                    {
-                        "ID": b.id,
-                        "Código": b.codigo_identificacao or "-",
-                        "Nome": b.nome,
-                        "Categoria": b.categoria or "-",
-                        "Subcategoria": b.subcategoria or "-",
-                        "Tipo": b.tipo,
-                        "Pontos": b.pontos,
-                        "Dimensões": dim_str,
-                        "Matriz Pronta": b.matriz_pronta,
-                        "Cores (Códigos)": b.linhas_usadas or "-",
-                        "Arte Digital": tem_digital,
-                        "Foto Real": tem_foto,
-                    }
-                )
+                item_tab = {
+                    "ID": b.id,
+                    "Código": b.codigo_identificacao or "-",
+                    "Nome": b.nome,
+                    "Categoria": b.categoria or "-",
+                    "Subcategoria": b.subcategoria or "-",
+                    "Tipo": b.tipo,
+                    "Pontos": b.pontos,
+                    "Dimensões": dim_str,
+                    "Matriz Pronta": b.matriz_pronta,
+                    "Cores (Códigos)": b.linhas_usadas or "-",
+                    "Arte Digital": tem_digital,
+                    "Foto Real": tem_foto,
+                }
+                if is_admin:
+                    item_tab["Visibilidade"] = b.visibilidade.capitalize()
+
+                dados_bordados.append(item_tab)
 
             df_bordados = pd.DataFrame(dados_bordados)
+
+            cfg_colunas = {
+                "ID": st.column_config.NumberColumn("ID", format="%d", width="small"),
+                "Código": st.column_config.TextColumn("Código", width="small"),
+                "Nome": st.column_config.TextColumn("Nome", width="medium"),
+                "Categoria": st.column_config.TextColumn("Categoria", width="small"),
+                "Subcategoria": st.column_config.TextColumn("Subcategoria", width="small"),
+                "Tipo": st.column_config.TextColumn("Tipo", width="small"),
+                "Pontos": st.column_config.NumberColumn("Pontos", format="%d pts", width="small"),
+                "Dimensões": st.column_config.TextColumn("Dimensões", width="small"),
+                "Matriz Pronta": st.column_config.CheckboxColumn("Matriz Pronta", width="small"),
+                "Cores (Códigos)": st.column_config.TextColumn("Cores (Códigos)", width="medium"),
+                "Arte Digital": st.column_config.TextColumn("Arte Digital", width="small"),
+                "Foto Real": st.column_config.TextColumn("Foto Real", width="small"),
+            }
+            if is_admin:
+                cfg_colunas["Visibilidade"] = st.column_config.TextColumn("Visibilidade", width="small")
 
             st.dataframe(
                 df_bordados,
                 hide_index=True,
                 width="stretch",
-                column_config={
-                    "ID": st.column_config.NumberColumn("ID", format="%d", width="small"),
-                    "Código": st.column_config.TextColumn("Código", width="small"),
-                    "Nome": st.column_config.TextColumn("Nome", width="medium"),
-                    "Categoria": st.column_config.TextColumn("Categoria", width="small"),
-                    "Subcategoria": st.column_config.TextColumn("Subcategoria", width="small"),
-                    "Tipo": st.column_config.TextColumn("Tipo", width="small"),
-                    "Pontos": st.column_config.NumberColumn("Pontos", format="%d pts", width="small"),
-                    "Dimensões": st.column_config.TextColumn("Dimensões", width="small"),
-                    "Matriz Pronta": st.column_config.CheckboxColumn("Matriz Pronta", width="small"),
-                    "Cores (Códigos)": st.column_config.TextColumn("Cores (Códigos)", width="medium"),
-                    "Arte Digital": st.column_config.TextColumn("Arte Digital", width="small"),
-                    "Foto Real": st.column_config.TextColumn("Foto Real", width="small"),
-                },
+                column_config=cfg_colunas,
             )
 
             c_tot, c_acao = st.columns([3, 1])
@@ -808,7 +878,7 @@ is_visitante = (role_atual == "visitante")
 
 if is_admin:
     st.title("Gestão do Catálogo")
-    st.caption("Gerencie o catálogo de peças confeccionadas e o acervo completo de bordados, matrizes e imagens.")
+    st.caption("Gerencie o catálogo de peças confeccionadas e o acervo completo de bordados, matrizes e imagens com Supabase Storage.")
     tab_pecas, tab_bordados = st.tabs(["Modelos de Peças", "Acervo de Bordados"])
     with tab_pecas:
         renderizar_catalogo_pecas()
